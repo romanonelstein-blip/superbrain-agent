@@ -1,0 +1,1 @@
+# Installation Guide\n\n## Prerequisites\n- Node.js 16.0.0+\n- Git 2.25.0+\n- GitHub CLI (`gh`) 2.0.0+ (optional)\n- Ollama (optional)\n\n## Setup\n\n```bash\ngit clone https://github.com/romanonelstein-blip/superbrain-agent.git\ncd superbrain-agent\nnpm install\nnpm run build\nnpm test\n```

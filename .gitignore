@@ -1,0 +1,1 @@
+node_modules/\n/.pnp\n/dist\n/build\n*.tsbuildinfo\n/coverage\n.nyc_output\n.vscode/\n.idea/\n*.swp\n.DS_Store\n.env\n.env.local\n.superbrain/logs/\nlogs/\n*.log\nnpm-debug.log*

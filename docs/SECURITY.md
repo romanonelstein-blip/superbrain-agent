@@ -1,0 +1,1 @@
+# Security & Privacy\n\n## Core Principles\n\n1. **No External Calls Without Consent**\n2. **Local-First Design**\n3. **Transparency** - Every action logged\n4. **No Auto-Credentials**\n\n## Dangerous Operations Requiring Approval\n\n- push, merge, delete, deploy, publish, force-push
