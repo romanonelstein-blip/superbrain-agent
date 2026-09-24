@@ -1,0 +1,14 @@
+{
+  "schema": "sb034-staging-v1",
+  "source": "SuperBrain-v0.24-SB034-hermetic-ci-candidate-hardened.zip",
+  "sha256": "74234a3c2dd3c411a5522671fa235d028fec787f00ae2121b78a8a0ca6ce27cb",
+  "size_bytes": 318799,
+  "archive_root": "SuperBrain-v0.24-SB034-hermetic-ci-candidate/",
+  "file_count": 193,
+  "payload_encoding": "base64",
+  "chunk_size": 20000,
+  "expected_chunks": 22,
+  "target_branch": "sb-034-hermetic-ci",
+  "target_base": "main",
+  "main_must_remain_untouched": true
+}
