@@ -43,3 +43,25 @@ export async function initializeAgent(repositoryPath: string): Promise<void> {
     `NEXUS-1000: ${nexusStatus.ready ? 'Ready' : nexusStatus.configured ? 'Configured but unavailable' : 'Not configured'}`,
   );
 }
+
+export {
+  MissionControlServer,
+  UnavailableMissionExecutor,
+} from './mobile/mission-control.js';
+export type {
+  MasterDecisionAction,
+  MasterDecisionRecord,
+  MissionAuditItem,
+  MissionControlAddress,
+  MissionControlServerConfig,
+  MissionDetail,
+  MissionDraft,
+  MissionEvidence,
+  MissionExecutionInput,
+  MissionExecutionResult,
+  MissionExecutor,
+  MissionExecutorStatus,
+  MissionMode,
+  MissionResponse,
+  MissionSummary,
+} from './mobile/mission-control.js';
