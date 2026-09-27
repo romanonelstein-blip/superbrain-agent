@@ -7,10 +7,12 @@
 		A10000000000000000000001 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperBrainMobileApp.swift; sourceTree = "<group>"; };
 		A10000000000000000000002 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MissionAPI.swift; sourceTree = "<group>"; };
 		A10000000000000000000003 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		A10000000000000000000004 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SuperBrainMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };\n		A10000000000000000000005 = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A10000000000000000000004 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SuperBrainMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000005 = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A20000000000000000000001 = {isa = PBXBuildFile; fileRef = A10000000000000000000001; };
 		A20000000000000000000002 = {isa = PBXBuildFile; fileRef = A10000000000000000000002; };
-		A20000000000000000000003 = {isa = PBXBuildFile; fileRef = A10000000000000000000003; };\n		A20000000000000000000004 = {isa = PBXBuildFile; fileRef = A10000000000000000000005; };
+		A20000000000000000000003 = {isa = PBXBuildFile; fileRef = A10000000000000000000003; };
+		A20000000000000000000004 = {isa = PBXBuildFile; fileRef = A10000000000000000000005; };
 		A30000000000000000000001 = {isa = PBXGroup; children = (A30000000000000000000002, A30000000000000000000003); sourceTree = "<group>"; };
 		A30000000000000000000002 = {isa = PBXGroup; children = (A10000000000000000000001, A10000000000000000000002, A10000000000000000000003, A10000000000000000000005); path = SuperBrainMobile; sourceTree = "<group>"; };
 		A30000000000000000000003 = {isa = PBXGroup; children = (A10000000000000000000004); name = Products; sourceTree = "<group>"; };
