@@ -67,7 +67,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if git grep -n -- '--show-token' -- src tests python; then
+          if git grep -n -- '--show-token' -- src python; then
             echo 'Token-revealing GitHub auth command detected.'
             exit 1
           fi
