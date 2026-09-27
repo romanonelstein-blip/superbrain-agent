@@ -22,7 +22,7 @@ private struct RootView: View {
 
     var body: some View {
         ZStack {
-            ContentView()
+            SuperBrainDashboard()
 
             if requireLocalAuth && !unlocked {
                 Rectangle()
