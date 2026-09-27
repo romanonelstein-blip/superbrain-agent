@@ -148,17 +148,15 @@ function parseSignals(input: unknown): RealitySignalInput[] {
     if (typeof signal.strength !== 'number' || !Number.isInteger(signal.strength) || signal.strength < 0 || signal.strength > 100) {
       throw new RealitySentinelControlError(400, `signals[${index}].strength must be an integer between 0 and 100.`);
     }
+    const evidenceId = optionalString(signal.evidenceId, `signals[${index}].evidenceId`, 200);
+    const observedAt = optionalString(signal.observedAt, `signals[${index}].observedAt`, 200);
     return {
       id: requiredString(signal.id, `signals[${index}].id`, 200),
       assumptionId: requiredString(signal.assumptionId, `signals[${index}].assumptionId`, 200),
       direction: direction as RealitySignalDirection,
       strength: signal.strength,
-      ...(optionalString(signal.evidenceId, `signals[${index}].evidenceId`, 200) ? {
-        evidenceId: optionalString(signal.evidenceId, `signals[${index}].evidenceId`, 200),
-      } : {}),
-      ...(optionalString(signal.observedAt, `signals[${index}].observedAt`, 200) ? {
-        observedAt: optionalString(signal.observedAt, `signals[${index}].observedAt`, 200),
-      } : {}),
+      ...(evidenceId ? { evidenceId } : {}),
+      ...(observedAt ? { observedAt } : {}),
     };
   });
 }
@@ -179,7 +177,8 @@ export class RealitySentinelControl {
     await this.load();
     return Array.from(this.records.values())
       .map((item): PredictionContractSummary => {
-        const latest = item.assessments.at(-1)?.assessment;
+        const latestRecord = item.assessments.length > 0 ? item.assessments[item.assessments.length - 1] : undefined;
+        const latest = latestRecord?.assessment;
         return {
           id: item.contract.id,
           decision: item.contract.decision,
