@@ -98,7 +98,8 @@ export class UnavailableMissionExecutor implements MissionExecutor {
     };
   }
 
-  async execute(_input: MissionExecutionInput): Promise<MissionExecutionResult> {
+  async execute(input: MissionExecutionInput): Promise<MissionExecutionResult> {
+    void input;
     throw new Error('No mission executor is configured.');
   }
 }
