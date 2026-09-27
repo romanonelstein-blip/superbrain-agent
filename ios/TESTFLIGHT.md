@@ -44,3 +44,7 @@ workflow on `sb-ios-cloud-build`.
 
 The workflow intentionally stops before upload if any required secret is
 missing or if the provisioning profile bundle ID does not match the app.
+
+## CI verification
+
+The regular iOS workflow verifies this branch on macOS 26 / Xcode 26 before any TestFlight signing run is attempted.
