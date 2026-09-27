@@ -1,0 +1,16 @@
+SUPERBRAIN SB-027.1 — START HERE
+
+IMPORTANT
+---------
+First extract this ZIP completely.
+
+Right-click the ZIP -> Extract All...
+Then open the extracted folder.
+
+Run:
+    run-live-osint-test.bat
+
+SB-027.1 also detects the common case where Windows accidentally runs the BAT
+from a ZIP preview. It will try to recover the full ZIP automatically.
+
+Do NOT run the BAT by double-clicking it while browsing inside the ZIP.

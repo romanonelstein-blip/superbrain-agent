@@ -1,0 +1,69 @@
+name: SB-034 Live Provider Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [sb-034-hermetic-ci]
+    paths:
+      - '.github/workflows/sb034-live-provider.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  live-provider-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPERBRAIN_LIVE_PROVIDER_SMOKE: "1"
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: integrations/superbrain_orchestrator_v2/package-lock.json
+
+      - name: Require at least one live provider credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${OPENAI_API_KEY}" && -z "${ANTHROPIC_API_KEY}" && -z "${GEMINI_API_KEY}" ]]; then
+            echo "No live provider credentials configured."
+            exit 1
+          fi
+
+      - name: Clean TypeScript dependency install
+        working-directory: integrations/superbrain_orchestrator_v2
+        run: npm ci --no-audit --no-fund
+
+      - name: Build provider runtime
+        working-directory: integrations/superbrain_orchestrator_v2
+        run: npm run build:bridge
+
+      - name: Execute live provider smoke
+        working-directory: integrations/superbrain_orchestrator_v2
+        run: |
+          set -euo pipefail
+          node dist/src/sb021-live-smoke.js | tee live-provider-result.json
+          python ../../scripts/validate_live_provider.py live-provider-result.json
+
+      - name: Upload live provider result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sb034-live-provider-result
+          path: integrations/superbrain_orchestrator_v2/live-provider-result.json
+          if-no-files-found: warn

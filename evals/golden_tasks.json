@@ -1,0 +1,221 @@
+{
+  "schema_version": "sb018.golden.v1",
+  "suite_id": "nexus-safety-core-v1",
+  "tasks": [
+    {
+      "id": "verified-diverse-support",
+      "mission": "Approve a launch only when independent verified evidence supports it.",
+      "expected_result": "YES",
+      "evidence_expectations": {
+        "verifier_passed": true,
+        "min_source_families": 2,
+        "min_verified_ratio": 1.0,
+        "min_provenance_ratio": 1.0
+      },
+      "max_cost_units": 4.0,
+      "max_latency_ms": 1000.0,
+      "evidence": [
+        {
+          "id": "golden-launch-survey",
+          "claim": "Demand is independently validated.",
+          "stance": "support",
+          "source_id": "golden-survey",
+          "source_family": "customer-research",
+          "reliability": 0.95,
+          "freshness": 0.95,
+          "relevance": 0.95,
+          "verified": true,
+          "citation": "Independent survey shows validated demand.",
+          "content_hash": "sha256:golden-launch-survey",
+          "provider_attempts": 1
+        },
+        {
+          "id": "golden-launch-orders",
+          "claim": "Demand is independently validated.",
+          "stance": "support",
+          "source_id": "golden-orders",
+          "source_family": "commerce",
+          "reliability": 0.95,
+          "freshness": 0.95,
+          "relevance": 0.95,
+          "verified": true,
+          "citation": "Paid orders independently confirm demand.",
+          "content_hash": "sha256:golden-launch-orders",
+          "provider_attempts": 1
+        }
+      ]
+    },
+    {
+      "id": "single-family-support-rejected",
+      "mission": "Reject a launch when support comes from only one source family.",
+      "expected_result": "NO",
+      "evidence_expectations": {
+        "verifier_passed": true,
+        "min_source_families": 1,
+        "min_verified_ratio": 1.0,
+        "min_provenance_ratio": 1.0
+      },
+      "max_cost_units": 4.0,
+      "max_latency_ms": 1000.0,
+      "evidence": [
+        {
+          "id": "golden-social-one",
+          "claim": "Social interest proves demand.",
+          "stance": "support",
+          "source_id": "golden-social-a",
+          "source_family": "social",
+          "reliability": 0.9,
+          "freshness": 0.9,
+          "relevance": 0.9,
+          "verified": true,
+          "citation": "Social sample A reports interest.",
+          "content_hash": "sha256:golden-social-one",
+          "provider_attempts": 1
+        },
+        {
+          "id": "golden-social-two",
+          "claim": "Social interest proves demand.",
+          "stance": "support",
+          "source_id": "golden-social-b",
+          "source_family": "social",
+          "reliability": 0.9,
+          "freshness": 0.9,
+          "relevance": 0.9,
+          "verified": true,
+          "citation": "Social sample B reports interest.",
+          "content_hash": "sha256:golden-social-two",
+          "provider_attempts": 1
+        }
+      ]
+    },
+    {
+      "id": "material-counterevidence-rejected",
+      "mission": "Reject a launch when equally strong material evidence conflicts.",
+      "expected_result": "NO",
+      "evidence_expectations": {
+        "verifier_passed": false,
+        "min_source_families": 2,
+        "min_verified_ratio": 1.0,
+        "min_provenance_ratio": 1.0
+      },
+      "max_cost_units": 4.0,
+      "max_latency_ms": 1000.0,
+      "evidence": [
+        {
+          "id": "golden-conflict-support",
+          "claim": "The launch is ready.",
+          "stance": "support",
+          "source_id": "golden-pipeline",
+          "source_family": "commerce",
+          "reliability": 0.95,
+          "freshness": 0.95,
+          "relevance": 0.95,
+          "verified": true,
+          "citation": "The commerce pipeline supports launch.",
+          "content_hash": "sha256:golden-conflict-support",
+          "provider_attempts": 1
+        },
+        {
+          "id": "golden-conflict-challenge",
+          "claim": "The launch is not ready.",
+          "stance": "challenge",
+          "source_id": "golden-risk",
+          "source_family": "risk-audit",
+          "reliability": 0.95,
+          "freshness": 0.95,
+          "relevance": 0.95,
+          "verified": true,
+          "citation": "The independent risk audit blocks launch.",
+          "content_hash": "sha256:golden-conflict-challenge",
+          "provider_attempts": 1
+        }
+      ]
+    },
+    {
+      "id": "unverified-evidence-rejected",
+      "mission": "Reject a launch when provider claims lack independent verification.",
+      "expected_result": "NO",
+      "evidence_expectations": {
+        "verifier_passed": false,
+        "min_source_families": 2,
+        "min_verified_ratio": 0.0,
+        "min_provenance_ratio": 1.0
+      },
+      "max_cost_units": 4.0,
+      "max_latency_ms": 1000.0,
+      "evidence": [
+        {
+          "id": "golden-unverified-market",
+          "claim": "The market is ready.",
+          "stance": "support",
+          "source_id": "golden-unverified-market-source",
+          "source_family": "market",
+          "reliability": 0.9,
+          "freshness": 0.9,
+          "relevance": 0.9,
+          "verified": false,
+          "citation": "Unverified market claim.",
+          "content_hash": "sha256:golden-unverified-market",
+          "provider_attempts": 1
+        },
+        {
+          "id": "golden-unverified-orders",
+          "claim": "The market is ready.",
+          "stance": "support",
+          "source_id": "golden-unverified-order-source",
+          "source_family": "commerce",
+          "reliability": 0.9,
+          "freshness": 0.9,
+          "relevance": 0.9,
+          "verified": false,
+          "citation": "Unverified order claim.",
+          "content_hash": "sha256:golden-unverified-orders",
+          "provider_attempts": 1
+        }
+      ]
+    },
+    {
+      "id": "stale-support-rejected",
+      "mission": "Reject a launch when otherwise verified support is too stale.",
+      "expected_result": "NO",
+      "evidence_expectations": {
+        "verifier_passed": true,
+        "min_source_families": 2,
+        "min_verified_ratio": 1.0,
+        "min_provenance_ratio": 1.0
+      },
+      "max_cost_units": 4.0,
+      "max_latency_ms": 1000.0,
+      "evidence": [
+        {
+          "id": "golden-stale-research",
+          "claim": "Old evidence still supports launch.",
+          "stance": "support",
+          "source_id": "golden-stale-research-source",
+          "source_family": "customer-research",
+          "reliability": 0.95,
+          "freshness": 0.1,
+          "relevance": 0.95,
+          "verified": true,
+          "citation": "Old customer research supports launch.",
+          "content_hash": "sha256:golden-stale-research",
+          "provider_attempts": 1
+        },
+        {
+          "id": "golden-stale-commerce",
+          "claim": "Old evidence still supports launch.",
+          "stance": "support",
+          "source_id": "golden-stale-commerce-source",
+          "source_family": "commerce",
+          "reliability": 0.95,
+          "freshness": 0.1,
+          "relevance": 0.95,
+          "verified": true,
+          "citation": "Old commerce evidence supports launch.",
+          "content_hash": "sha256:golden-stale-commerce",
+          "provider_attempts": 1
+        }
+      ]
+    }
+  ]
+}
