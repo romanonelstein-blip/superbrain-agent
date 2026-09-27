@@ -1,0 +1,94 @@
+name: Release Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: verify-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm test
+
+      - name: Python bridge syntax
+        run: python -m py_compile python/nexus_bridge_runner.py
+
+      - name: Reject credential-shaped content
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -nEI \
+            -e 'github_pat_[A-Za-z0-9_]{20,}' \
+            -e 'ghp_[A-Za-z0-9]{20,}' \
+            -e 'sk-[A-Za-z0-9_-]{20,}' \
+            -e 'Bearer[[:space:]]+[A-Za-z0-9._-]{20,}' \
+            -e '-----BEGIN ([A-Z ]+)?PRIVATE KEY-----' \
+            -- src tests python .github; then
+            echo 'Credential-shaped content detected.'
+            exit 1
+          fi
+
+      - name: Reject token-revealing GitHub auth diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -n -- '--show-token' -- src python; then
+            echo 'Token-revealing GitHub auth command detected.'
+            exit 1
+          fi
+
+      - name: Verify sensitive local paths are ignored
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in .env .env.local .superbrain/logs/audit.jsonl; do
+            git check-ignore -q "$path" || {
+              echo "Sensitive path is not ignored: $path"
+              exit 1
+            }
+          done
+
+      - name: Verify bridge remains fail-closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "grand_council" src/core/nexus.ts
+          grep -q "neis" src/core/nexus.ts
+          grep -q "blinded_dissent" src/core/nexus.ts
+          grep -q "verifier" src/core/nexus.ts
+          grep -q "decision === 'YES'" src/core/nexus.ts
