@@ -1,0 +1,53 @@
+# Mission Control API
+
+Mission Control is the HTTP boundary used by the SuperBrain iOS app.
+
+## Security model
+
+- bearer token authentication is mandatory;
+- tokens shorter than 20 characters are rejected;
+- responses use no-store and restrictive security headers;
+- the standalone server binds to loopback by default;
+- a non-loopback HTTP bind is refused unless explicitly overridden;
+- remote iPhone access should terminate TLS in front of Mission Control;
+- mission execution is fail-closed when no real `MissionExecutor` is attached.
+
+The standalone command never invents NEXUS evidence or results. It exposes
+status/history/decision storage, but reports interactive and research
+missions unavailable until a real executor is integrated.
+
+## Start
+
+Build first:
+
+```bash
+npm run build
+```
+
+Set a secret locally (never commit it):
+
+```bash
+SUPERBRAIN_MISSION_CONTROL_TOKEN='replace-with-a-long-random-secret' npm run start:mobile-api
+```
+
+Defaults:
+
+- host: `127.0.0.1`
+- port: `8787`
+- data: `.superbrain/mission-control/missions.json`
+
+For an iPhone on another device/network, put this HTTP service behind a
+trusted HTTPS endpoint. The iOS client intentionally rejects ordinary
+remote HTTP.
+
+## Routes
+
+- `GET /api/system/status`
+- `GET /api/missions`
+- `GET /api/missions/{runId}`
+- `POST /api/missions/ask`
+- `POST /api/missions/research`
+- `POST /api/missions/{runId}/master-decision`
+
+The server also advertises the SuperBrain version, mobile API version and
+capability IDs so the iOS app can detect compatibility drift.
