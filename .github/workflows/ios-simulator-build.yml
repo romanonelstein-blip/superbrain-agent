@@ -1,0 +1,43 @@
+name: iOS simulator build (manual)
+
+on:
+  push:
+    branches: [sb-ios-cloud-build]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-simulator-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Xcode version
+        run: xcodebuild -version
+      - name: Compile unsigned iOS Simulator app
+        run: |
+          xcodebuild \
+            -project ios/SuperBrainMobile.xcodeproj \
+            -scheme SuperBrainMobile \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/superbrain-ios" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Archive simulator build
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$RUNNER_TEMP/superbrain-ios/Build/Products/Debug-iphonesimulator/SuperBrainMobile.app" \
+            "$RUNNER_TEMP/SuperBrainMobile-Simulator.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SuperBrainMobile-Simulator-unsigned
+          path: ${{ runner.temp }}/SuperBrainMobile-Simulator.zip
+          if-no-files-found: error
+          retention-days: 7
