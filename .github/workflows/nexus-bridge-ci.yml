@@ -3,6 +3,7 @@ name: NEXUS Bridge CI
 on:
   push:
     branches:
+      - main
       - feat/nexus1000-bridge
       - fix/github-auth-verification
   pull_request:
