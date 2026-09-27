@@ -6,6 +6,14 @@ struct RuntimeStatus: Decodable {
     let interactiveMissionsAvailable: Bool
     let researchMissionsAvailable: Bool
     let configuredProviders: [String]
+    let superBrainVersion: String?
+    let apiVersion: String?
+    let capabilities: [String]?
+
+    var missingRequiredMobileCapabilities: [String] {
+        guard let capabilities else { return [] }
+        return Array(SuperBrainContract.requiredCapabilityIDs.subtracting(Set(capabilities))).sorted()
+    }
 }
 
 struct Mission: Identifiable, Decodable {

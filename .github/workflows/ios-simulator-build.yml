@@ -2,9 +2,14 @@ name: iOS simulator build (manual)
 
 on:
   push:
-    branches: [sb-ios-cloud-build]
+    branches: [main, sb-ios-cloud-build]
     paths:
       - 'ios/**'
+      - 'shared/superbrain-mobile-contract.json'
+      - 'scripts/sync-ios-contract.mjs'
+      - 'package.json'
+      - 'src/**'
+      - 'python/**'
       - '.github/workflows/ios-simulator-build.yml'
   workflow_dispatch:
 
@@ -17,6 +22,8 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - name: Verify SuperBrain ↔ iOS contract sync
+        run: node scripts/sync-ios-contract.mjs --check
       - name: Show Xcode version
         run: xcodebuild -version
       - name: Compile unsigned iOS Simulator app
@@ -73,8 +80,9 @@ jobs:
           test -f "$VERIFY_DIR/Payload/SuperBrainMobile.app/SuperBrainMobile"
           BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$VERIFY_DIR/Payload/SuperBrainMobile.app/Info.plist")
           VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$VERIFY_DIR/Payload/SuperBrainMobile.app/Info.plist")
+          EXPECTED_VERSION=$(python3 -c 'import json; print(json.load(open("shared/superbrain-mobile-contract.json"))["iosClientVersion"])')
           test "$BUNDLE_ID" = "com.romanonelstein.superbrainmobile"
-          test "$VERSION" = "0.2.0"
+          test "$VERSION" = "$EXPECTED_VERSION"
           shasum -a 256 "$IPA" | tee "$RUNNER_TEMP/SuperBrainMobile-iPhone-unsigned.sha256"
       - uses: actions/upload-artifact@v4
         with:

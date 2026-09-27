@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "apiVersion": "1",
+  "iosClientVersion": "0.2.0",
+  "capabilities": [
+    {
+      "id": "runtime_status",
+      "title": "Runtime-status",
+      "kind": "endpoint",
+      "method": "GET",
+      "endpoint": "/api/system/status",
+      "verificationToken": "/api/system/status",
+      "mobileSupport": "native",
+      "required": true
+    },
+    {
+      "id": "mission_list",
+      "title": "Opdrachtgeschiedenis",
+      "kind": "endpoint",
+      "method": "GET",
+      "endpoint": "/api/missions",
+      "verificationToken": "/api/missions",
+      "mobileSupport": "native",
+      "required": true
+    },
+    {
+      "id": "mission_ask",
+      "title": "Snelle opdracht",
+      "kind": "endpoint",
+      "method": "POST",
+      "endpoint": "/api/missions/ask",
+      "verificationToken": "/api/missions/ask",
+      "mobileSupport": "native",
+      "required": true
+    },
+    {
+      "id": "mission_research",
+      "title": "Onderzoek met bronnen",
+      "kind": "endpoint",
+      "method": "POST",
+      "endpoint": "/api/missions/research",
+      "verificationToken": "/api/missions/research",
+      "mobileSupport": "native",
+      "required": true
+    },
+    {
+      "id": "mission_detail",
+      "title": "Opdrachtdetail",
+      "kind": "endpoint",
+      "method": "GET",
+      "endpoint": "/api/missions/{runId}",
+      "verificationToken": "/api/missions/",
+      "mobileSupport": "native",
+      "required": true
+    },
+    {
+      "id": "master_decision",
+      "title": "Master-beslissing",
+      "kind": "endpoint",
+      "method": "POST",
+      "endpoint": "/api/missions/{runId}/master-decision",
+      "verificationToken": "/master-decision",
+      "mobileSupport": "native",
+      "required": true
+    },
+    {
+      "id": "evidence_review",
+      "title": "Bewijs en broncontrole",
+      "kind": "model",
+      "mobileSupport": "native",
+      "required": true
+    },
+    {
+      "id": "audit_trail",
+      "title": "Controlepad",
+      "kind": "model",
+      "mobileSupport": "native",
+      "required": true
+    },
+    {
+      "id": "local_device_lock",
+      "title": "Face ID / toestelcode",
+      "kind": "client",
+      "mobileSupport": "native",
+      "required": true
+    },
+    {
+      "id": "secure_token_storage",
+      "title": "Sleutelhanger-tokenopslag",
+      "kind": "client",
+      "mobileSupport": "native",
+      "required": true
+    }
+  ]
+}

@@ -72,8 +72,20 @@ struct ContentView: View {
                         Label(store.status == nil ? "Niet verbonden" : "Verbonden", systemImage: store.status == nil ? "wifi.slash" : "checkmark.shield")
                         if let status = store.status {
                             Text("Beslismotor: \(status.canonicalRuntime)")
+                            Text("SuperBrain core: \(status.superBrainVersion ?? SuperBrainContract.coreVersion) · API \(status.apiVersion ?? SuperBrainContract.apiVersion)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("iOS-client: \(SuperBrainContract.iosClientVersion) · \(SuperBrainContract.capabilities.count) capabilities")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                             Text("Model: \(status.configuredProviders.joined(separator: ", ").isEmpty ? "niet ingesteld" : status.configuredProviders.joined(separator: ", "))")
                                 .foregroundStyle(.secondary)
+                            if !status.missingRequiredMobileCapabilities.isEmpty {
+                                Label("Mobiele synchronisatie vereist: \(status.missingRequiredMobileCapabilities.joined(separator: ", "))",
+                                      systemImage: "arrow.triangle.2.circlepath.circle")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                            }
                         }
                     }
                     Section("Nieuwe opdracht") {
