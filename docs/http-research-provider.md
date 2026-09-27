@@ -111,3 +111,27 @@ challenge stance. Discovery endpoints can provide a valid explicit stance.
 
 The provider does not make the final decision. NEXUS remains the only
 decision boundary.
+
+
+## Research diversity gate
+
+Research mode is deliberately stricter than quick ask mode.
+
+Defaults:
+
+- at least 2 unique primary sources;
+- at least 2 distinct primary source families;
+- at least 1 independent dissent source;
+- dissent may not reuse a primary URL or content hash;
+- by default dissent must also come from a source family not present in the primary set;
+- duplicate content hashes are collapsed even when they appear at different URLs.
+
+Environment overrides:
+
+- `SUPERBRAIN_RESEARCH_MIN_PRIMARY_SOURCES`
+- `SUPERBRAIN_RESEARCH_MIN_PRIMARY_FAMILIES`
+- `SUPERBRAIN_RESEARCH_MIN_DISSENT_SOURCES`
+- `SUPERBRAIN_RESEARCH_REQUIRE_DISTINCT_DISSENT_FAMILY`
+
+Reducing these values weakens evidence independence and should only be done
+for controlled testing or a deliberately lower-assurance deployment.

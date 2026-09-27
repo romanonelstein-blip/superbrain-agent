@@ -107,6 +107,9 @@ describe('HttpResearchEvidenceProvider', (): void => {
       allowPrivateNetworksForTesting: true,
       allowInsecureHttpForTesting: true,
       maxResultsPerProvider: 3,
+      minimumResearchPrimarySources: 1,
+      minimumResearchPrimaryFamilies: 1,
+      requireDistinctDissentFamily: false,
     });
 
     await expect(provider.getStatus()).resolves.toEqual({
@@ -145,7 +148,55 @@ describe('HttpResearchEvidenceProvider', (): void => {
         }),
       ],
     }));
-    expect(bundle.verificationNote).toContain('independent primary and dissent');
+    expect(bundle.verificationNote).toContain('Research diversity gate passed');
+    expect(bundle.verificationNote).toContain('independent dissent source');
+  });
+
+  test('research mode fails closed when primary evidence lacks source diversity', async (): Promise<void> => {
+    const fixture = await createFixtureServer();
+    const provider = new HttpResearchEvidenceProvider({
+      primary: {
+        endpoint: `${fixture.baseUrl}/primary`,
+        providerName: 'primary-fixture',
+      },
+      dissent: {
+        endpoint: `${fixture.baseUrl}/dissent`,
+        providerName: 'dissent-fixture',
+      },
+      allowPrivateNetworksForTesting: true,
+      allowInsecureHttpForTesting: true,
+    });
+
+    await expect(provider.collect({
+      runId: 'run-diversity',
+      question: 'Require independent primary sources',
+      mode: 'research',
+    })).rejects.toThrow('at least 2 unique primary source');
+  });
+
+  test('dissent cannot reuse the same source family when independence is required', async (): Promise<void> => {
+    const fixture = await createFixtureServer();
+    const provider = new HttpResearchEvidenceProvider({
+      primary: {
+        endpoint: `${fixture.baseUrl}/primary`,
+        providerName: 'primary-fixture',
+      },
+      dissent: {
+        endpoint: `${fixture.baseUrl}/dissent`,
+        providerName: 'dissent-fixture',
+      },
+      allowPrivateNetworksForTesting: true,
+      allowInsecureHttpForTesting: true,
+      minimumResearchPrimarySources: 1,
+      minimumResearchPrimaryFamilies: 1,
+      requireDistinctDissentFamily: true,
+    });
+
+    await expect(provider.collect({
+      runId: 'run-dissent-family',
+      question: 'Reject same-family dissent',
+      mode: 'research',
+    })).rejects.toThrow('independent dissent source');
   });
 
   test('refuses ordinary HTTP endpoints outside explicit test mode', (): void => {
