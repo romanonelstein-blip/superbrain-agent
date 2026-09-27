@@ -2,6 +2,10 @@ import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { dirname } from 'node:path';
+import {
+  RealitySentinelControl,
+  RealitySentinelControlError,
+} from './reality-sentinel-control.js';
 
 export type MissionMode = 'ask' | 'research';
 export type MasterDecisionAction = 'ACCEPT' | 'MODIFY' | 'RESEARCH_MORE' | 'OVERRIDE' | 'REJECT';
@@ -214,6 +218,7 @@ const DECISIONS = new Set<MasterDecisionAction>([
 export class MissionControlServer {
   private readonly config: Required<Omit<MissionControlServerConfig, 'executor'>> & { executor: MissionExecutor };
   private readonly store: MissionStore;
+  private readonly reality: RealitySentinelControl;
   private server: Server | null = null;
 
   constructor(config: MissionControlServerConfig) {
@@ -232,6 +237,7 @@ export class MissionControlServer {
       maxBodyBytes: config.maxBodyBytes ?? 64 * 1024,
     };
     this.store = new MissionStore(this.config.dataPath);
+    this.reality = new RealitySentinelControl(`${this.config.dataPath}.reality.json`);
   }
 
   async listen(): Promise<MissionControlAddress> {
@@ -242,8 +248,9 @@ export class MissionControlServer {
           response.destroy();
           return;
         }
-        const statusCode = error instanceof HttpError ? error.statusCode : 500;
-        const detail = error instanceof HttpError ? error.message : 'Unexpected Mission Control error.';
+        const knownError = error instanceof HttpError || error instanceof RealitySentinelControlError;
+        const statusCode = knownError ? error.statusCode : 500;
+        const detail = knownError ? error.message : 'Unexpected Mission Control error.';
         this.sendJson(response, statusCode, { error: statusCode === 500 ? 'internal_error' : 'request_failed', detail });
       });
     });
@@ -308,22 +315,64 @@ export class MissionControlServer {
       return;
     }
 
+    if (method === 'GET' && url.pathname === '/api/reality/contracts') {
+      this.sendJson(response, 200, { contracts: await this.reality.list() });
+      return;
+    }
+
+    if (method === 'POST' && url.pathname === '/api/reality/contracts') {
+      const body = await this.readJsonBody(request);
+      let sourceRunId: string | undefined;
+      if (body.sourceRunId !== undefined) {
+        if (typeof body.sourceRunId !== 'string' || !body.sourceRunId.trim()) {
+          throw new HttpError(400, 'sourceRunId must be a non-empty string when provided.');
+        }
+        sourceRunId = body.sourceRunId.trim();
+        if (!await this.store.get(sourceRunId)) throw new HttpError(404, 'Source mission was not found.');
+      }
+      const stored = await this.reality.register(body.contract, sourceRunId);
+      this.sendJson(response, 201, stored);
+      return;
+    }
+
     if (method === 'POST' && (url.pathname === '/api/missions/ask' || url.pathname === '/api/missions/research')) {
       const mode: MissionMode = url.pathname.endsWith('/research') ? 'research' : 'ask';
       await this.startMission(request, response, mode);
       return;
     }
 
+    const assessmentMatch = url.pathname.match(/^\/api\/reality\/contracts\/([^/]+)\/assess$/);
+    if (method === 'POST' && assessmentMatch) {
+      const contractId = this.decodeResourceId(assessmentMatch[1], 'prediction contract');
+      const body = await this.readJsonBody(request);
+      const runId = typeof body.runId === 'string' ? body.runId.trim() : '';
+      if (!runId) throw new HttpError(400, 'runId must be a non-empty string.');
+      const mission = await this.store.get(runId);
+      if (!mission) throw new HttpError(404, 'Evidence mission was not found.');
+      const result = await this.reality.assess(contractId, runId, body.signals, mission.evidence);
+      this.sendJson(response, 200, result);
+      return;
+    }
+
+    const contractMatch = url.pathname.match(/^\/api\/reality\/contracts\/([^/]+)$/);
+    if (method === 'GET' && contractMatch) {
+      const contractId = this.decodeResourceId(contractMatch[1], 'prediction contract');
+      const contract = await this.reality.get(contractId);
+      if (!contract) throw new HttpError(404, 'Prediction contract was not found.');
+      this.sendJson(response, 200, contract);
+      return;
+    }
+
     const decisionMatch = url.pathname.match(/^\/api\/missions\/([^/]+)\/master-decision$/);
     if (method === 'POST' && decisionMatch) {
-      const runId = this.decodeRunId(decisionMatch[1]);
+      const runId = this.decodeResourceId(decisionMatch[1], 'mission');
       await this.recordMasterDecision(request, response, runId);
       return;
     }
 
     const detailMatch = url.pathname.match(/^\/api\/missions\/([^/]+)$/);
     if (method === 'GET' && detailMatch) {
-      const runId = this.decodeRunId(detailMatch[1]);
+      const runId = this.decodeResourceId(detailMatch[1], 'mission');
       const detail = await this.store.get(runId);
       if (!detail) throw new HttpError(404, 'Mission was not found.');
       this.sendJson(response, 200, {
@@ -446,13 +495,13 @@ export class MissionControlServer {
     }
   }
 
-  private decodeRunId(encoded: string): string {
+  private decodeResourceId(encoded: string, label: string): string {
     try {
       const decoded = decodeURIComponent(encoded);
       if (!decoded || decoded.includes('/') || decoded.length > 200) throw new Error('invalid');
       return decoded;
     } catch {
-      throw new HttpError(400, 'Invalid mission id.');
+      throw new HttpError(400, `Invalid ${label} id.`);
     }
   }
 
