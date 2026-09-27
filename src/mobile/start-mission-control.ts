@@ -33,6 +33,22 @@ function parseEvidenceProviderArgs(value: string | undefined): string[] {
   return parsed as string[];
 }
 
+function parseResearchInteger(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const value = Number.parseInt(raw, 10);
+  if (!Number.isInteger(value)) throw new Error(`${name} must be an integer.`);
+  return value;
+}
+
+function parseResearchBoolean(name: string, fallback: boolean): boolean {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  if (raw === '1' || raw.toLowerCase() === 'true') return true;
+  if (raw === '0' || raw.toLowerCase() === 'false') return false;
+  throw new Error(`${name} must be true/false or 1/0.`);
+}
+
 function evidenceProviderFromEnvironment(): MissionEvidenceProvider {
   const command = process.env.SUPERBRAIN_EVIDENCE_PROVIDER_COMMAND?.trim();
   const primaryEndpoint = process.env.SUPERBRAIN_RESEARCH_PRIMARY_ENDPOINT?.trim();
@@ -61,6 +77,22 @@ function evidenceProviderFromEnvironment(): MissionEvidenceProvider {
           ? { bearerToken: process.env.SUPERBRAIN_RESEARCH_DISSENT_TOKEN }
           : {}),
       },
+      minimumResearchPrimarySources: parseResearchInteger(
+        'SUPERBRAIN_RESEARCH_MIN_PRIMARY_SOURCES',
+        2,
+      ),
+      minimumResearchPrimaryFamilies: parseResearchInteger(
+        'SUPERBRAIN_RESEARCH_MIN_PRIMARY_FAMILIES',
+        2,
+      ),
+      minimumDissentSources: parseResearchInteger(
+        'SUPERBRAIN_RESEARCH_MIN_DISSENT_SOURCES',
+        1,
+      ),
+      requireDistinctDissentFamily: parseResearchBoolean(
+        'SUPERBRAIN_RESEARCH_REQUIRE_DISTINCT_DISSENT_FAMILY',
+        true,
+      ),
       allowedSourceHosts: (process.env.SUPERBRAIN_RESEARCH_ALLOWED_HOSTS ?? '')
         .split(',')
         .map((host): string => host.trim())

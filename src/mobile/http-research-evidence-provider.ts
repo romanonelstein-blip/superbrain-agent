@@ -27,6 +27,10 @@ export interface HttpResearchEvidenceProviderConfig {
   maxSourceBytes?: number;
   maxSearchResponseBytes?: number;
   maxRedirects?: number;
+  minimumResearchPrimarySources?: number;
+  minimumResearchPrimaryFamilies?: number;
+  minimumDissentSources?: number;
+  requireDistinctDissentFamily?: boolean;
   allowedSourceHosts?: string[];
   allowPrivateNetworksForTesting?: boolean;
   allowInsecureHttpForTesting?: boolean;
@@ -99,6 +103,10 @@ export class HttpResearchEvidenceProvider implements MissionEvidenceProvider {
     const maxSourceBytes = config.maxSourceBytes ?? 512 * 1024;
     const maxSearchResponseBytes = config.maxSearchResponseBytes ?? 256 * 1024;
     const maxRedirects = config.maxRedirects ?? 3;
+    const minimumResearchPrimarySources = config.minimumResearchPrimarySources ?? 2;
+    const minimumResearchPrimaryFamilies = config.minimumResearchPrimaryFamilies ?? 2;
+    const minimumDissentSources = config.minimumDissentSources ?? 1;
+    const requireDistinctDissentFamily = config.requireDistinctDissentFamily ?? true;
 
     this.requireIntegerRange(searchTimeoutMs, 100, 120_000, 'searchTimeoutMs');
     this.requireIntegerRange(fetchTimeoutMs, 100, 120_000, 'fetchTimeoutMs');
@@ -106,6 +114,12 @@ export class HttpResearchEvidenceProvider implements MissionEvidenceProvider {
     this.requireIntegerRange(maxSourceBytes, 1024, 5 * 1024 * 1024, 'maxSourceBytes');
     this.requireIntegerRange(maxSearchResponseBytes, 1024, 2 * 1024 * 1024, 'maxSearchResponseBytes');
     this.requireIntegerRange(maxRedirects, 0, 8, 'maxRedirects');
+    this.requireIntegerRange(minimumResearchPrimarySources, 1, 10, 'minimumResearchPrimarySources');
+    this.requireIntegerRange(minimumResearchPrimaryFamilies, 1, 10, 'minimumResearchPrimaryFamilies');
+    this.requireIntegerRange(minimumDissentSources, 1, 10, 'minimumDissentSources');
+    if (minimumResearchPrimaryFamilies > minimumResearchPrimarySources) {
+      throw new Error('minimumResearchPrimaryFamilies may not exceed minimumResearchPrimarySources.');
+    }
 
     this.config = {
       primary: {
@@ -124,6 +138,10 @@ export class HttpResearchEvidenceProvider implements MissionEvidenceProvider {
       maxSourceBytes,
       maxSearchResponseBytes,
       maxRedirects,
+      minimumResearchPrimarySources,
+      minimumResearchPrimaryFamilies,
+      minimumDissentSources,
+      requireDistinctDissentFamily,
       allowedSourceHosts: (config.allowedSourceHosts ?? [])
         .map((host): string => host.trim().toLowerCase())
         .filter(Boolean),
@@ -175,18 +193,62 @@ export class HttpResearchEvidenceProvider implements MissionEvidenceProvider {
     if (primaryEvidence.length === 0) {
       throw new Error('Primary research provider returned no retrievable evidence.');
     }
-    if (dissentEvidence.length === 0) {
-      throw new Error('Dissent research provider returned no retrievable counterevidence.');
+
+    const primaryFamilies = new Set(
+      primaryEvidence.map((item): string => item.sourceFamily).filter(Boolean),
+    );
+    const minimumPrimarySources = input.mode === 'research'
+      ? this.config.minimumResearchPrimarySources
+      : 1;
+    const minimumPrimaryFamilies = input.mode === 'research'
+      ? this.config.minimumResearchPrimaryFamilies
+      : 1;
+
+    if (primaryEvidence.length < minimumPrimarySources) {
+      throw new Error(
+        `Research diversity gate requires at least ${minimumPrimarySources} unique primary source(s).`,
+      );
+    }
+    if (primaryFamilies.size < minimumPrimaryFamilies) {
+      throw new Error(
+        `Research diversity gate requires at least ${minimumPrimaryFamilies} primary source families.`,
+      );
+    }
+
+    const primaryUrls = new Set(primaryEvidence.map((item): string => item.sourceId));
+    const primaryHashes = new Set(
+      primaryEvidence.map((item): string => item.contentHash ?? '').filter(Boolean),
+    );
+    const independentDissentEvidence = dissentEvidence.filter((item): boolean => {
+      if (primaryUrls.has(item.sourceId)) return false;
+      if (item.contentHash && primaryHashes.has(item.contentHash)) return false;
+      if (this.config.requireDistinctDissentFamily && primaryFamilies.has(item.sourceFamily)) {
+        return false;
+      }
+      return true;
+    });
+
+    if (independentDissentEvidence.length < this.config.minimumDissentSources) {
+      throw new Error(
+        `Research diversity gate requires at least ${this.config.minimumDissentSources} independent dissent source(s).`,
+      );
     }
 
     const audit: MissionAuditItem[] = [
       {
         stage: 'research_primary',
-        detail: `${this.config.primary.providerName}: ${primaryEvidence.length} source(s) retrieved and hashed.`,
+        detail:
+          `${this.config.primary.providerName}: ${primaryEvidence.length} unique source(s) across ${primaryFamilies.size} source family/families.`,
       },
       {
         stage: 'research_dissent',
-        detail: `${this.config.dissent.providerName}: ${dissentEvidence.length} source(s) retrieved and hashed independently.`,
+        detail:
+          `${this.config.dissent.providerName}: ${independentDissentEvidence.length} independent dissent source(s) after overlap filtering.`,
+      },
+      {
+        stage: 'research_diversity_gate',
+        detail:
+          `PASS primary_sources=${primaryEvidence.length}; primary_families=${primaryFamilies.size}; dissent_sources=${independentDissentEvidence.length}.`,
       },
     ];
 
@@ -195,11 +257,11 @@ export class HttpResearchEvidenceProvider implements MissionEvidenceProvider {
       dissent: {
         completed: true,
         provider: this.config.dissent.providerName,
-        evidence: dissentEvidence,
+        evidence: independentDissentEvidence,
       },
       audit,
       verificationNote:
-        `Retrieved and hashed ${primaryEvidence.length + dissentEvidence.length} source(s) across independent primary and dissent discovery providers.`,
+        `Research diversity gate passed with ${primaryEvidence.length} primary source(s), ${primaryFamilies.size} primary family/families and ${independentDissentEvidence.length} independent dissent source(s).`,
     };
   }
 
@@ -296,12 +358,16 @@ export class HttpResearchEvidenceProvider implements MissionEvidenceProvider {
   ): Promise<MissionEvidenceBundle['evidence']> {
     const evidence: MissionEvidenceBundle['evidence'] = [];
     const canonicalUrls = new Set<string>();
+    const contentHashes = new Set<string>();
 
     for (const result of results) {
       try {
         const source = await this.fetchSource(result.url);
         if (canonicalUrls.has(source.url)) continue;
         canonicalUrls.add(source.url);
+
+        if (contentHashes.has(source.contentHash)) continue;
+        contentHashes.add(source.contentHash);
 
         const claim = this.buildClaim(result, source);
         if (!claim) continue;
