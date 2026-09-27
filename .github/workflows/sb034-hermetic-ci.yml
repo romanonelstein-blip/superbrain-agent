@@ -1,0 +1,110 @@
+name: SB-034 Hermetic CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - sb-034-hermetic-ci
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sb034-hermetic-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  process-recovery:
+    name: Process recovery (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Abrupt process termination and resume
+        run: python -m unittest discover -s tests -p test_v044_process_recovery.py -v
+      - name: SQLite backup and scheduler persistence
+        run: python -m unittest discover -s tests -p test_v041_p0_durability.py -v
+
+  technical-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: integrations/superbrain_orchestrator_v2/package-lock.json
+
+      - name: Python regression
+        run: python -m unittest discover -s tests -p 'test*.py'
+
+      - name: Python compile
+        run: python -m compileall -q nexus1000 tests
+
+      - name: Golden eval comparison
+        run: python -m nexus1000.sb018_eval --output-dir work/sb018-evals
+
+      - name: SB-019 experiment acceptance
+        run: python -m nexus1000.sb019_experiment
+
+      - name: SB-020 approval-gated apply acceptance
+        run: python -m nexus1000.sb020_apply
+
+      - name: Clean TypeScript dependency install
+        working-directory: integrations/superbrain_orchestrator_v2
+        run: npm ci --no-audit --no-fund
+
+      - name: TypeScript tests
+        working-directory: integrations/superbrain_orchestrator_v2
+        run: npm test
+
+      - name: TypeScript typecheck
+        working-directory: integrations/superbrain_orchestrator_v2
+        run: npm run typecheck
+
+      - name: TypeScript bridge build
+        working-directory: integrations/superbrain_orchestrator_v2
+        run: npm run build:bridge
+
+      - name: SB-021 provider resilience self-test
+        working-directory: integrations/superbrain_orchestrator_v2
+        run: npm run sb021:selftest
+
+      - name: Secret-pattern guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE --exclude-dir=.git --exclude-dir=node_modules --exclude='*.md'             '(sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|AIza[0-9A-Za-z_-]{20,})' .; then
+            echo 'Potential credential material detected.'
+            exit 1
+          fi
+          echo 'No common credential patterns detected.'
+
+      - name: Upload eval reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sb034-golden-eval-report
+          path: work/sb018-evals
+          if-no-files-found: warn

@@ -1,0 +1,70 @@
+name: SB-018 Golden Evals
+
+on:
+  pull_request:
+    paths:
+      - "nexus1000/**"
+      - "tests/**"
+      - "evals/**"
+      - "experiments/**"
+      - "approvals/**"
+      - "integrations/superbrain_orchestrator_v2/**"
+      - "pyproject.toml"
+      - ".github/workflows/sb018-quality.yml"
+  push:
+    paths:
+      - "nexus1000/**"
+      - "tests/**"
+      - "evals/**"
+      - "experiments/**"
+      - "approvals/**"
+      - "integrations/superbrain_orchestrator_v2/**"
+      - "pyproject.toml"
+      - ".github/workflows/sb018-quality.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: integrations/superbrain_orchestrator_v2/package-lock.json
+      - name: Python tests
+        run: python -m unittest discover -s tests -p 'test*.py'
+      - name: Golden eval comparison
+        run: python -m nexus1000.sb018_eval --output-dir work/sb018-evals
+      - name: SB-019 experiment acceptance
+        run: python -m nexus1000.sb019_experiment
+      - name: SB-020 approval-gated apply acceptance
+        run: python -m nexus1000.sb020_apply
+      - name: Restore TypeScript dependencies
+        working-directory: integrations/superbrain_orchestrator_v2
+        run: npm ci
+      - name: TypeScript tests
+        working-directory: integrations/superbrain_orchestrator_v2
+        run: npm test
+      - name: TypeScript typecheck
+        working-directory: integrations/superbrain_orchestrator_v2
+        run: npm run typecheck
+      - name: TypeScript bridge build
+        working-directory: integrations/superbrain_orchestrator_v2
+        run: npm run build:bridge
+      - name: SB-021 offline provider resilience self-test
+        working-directory: integrations/superbrain_orchestrator_v2
+        run: npm run sb021:selftest
+      - name: Upload eval reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sb018-golden-eval-report
+          path: work/sb018-evals
+          if-no-files-found: error

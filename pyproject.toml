@@ -1,0 +1,8 @@
+[project]
+name = "nexus1000"
+version = "0.17.0"
+description = "Evidence-first multi-council decision prototype"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

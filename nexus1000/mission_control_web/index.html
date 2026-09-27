@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SuperBrain Command Center</title>
+  <link rel="stylesheet" href="/styles.css?v=sb030">
+</head>
+<body data-compat-version="SB-030 · AUTONOMOUS INTELLIGENCE LOOP · SB-029 ASSURANCE · SB-027 · WORLD MODEL + OSINT · SB-028 CHANGE ENGINE">
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">SB</div>
+        <div><strong>SuperBrain</strong><span>Command Center</span></div>
+      </div>
+      <nav>
+        <button class="nav-item active" data-target="overview">◈ <span>Overview</span></button>
+        <button class="nav-item" data-target="mission-lab">⌁ <span>Mission Lab</span></button>
+        <button class="nav-item" data-target="mission-detail">◎ <span>Mission Detail</span></button>
+        <button class="nav-item" data-target="world-model">◉ <span>World Model</span></button>
+        <button class="nav-item" data-target="runtime">⚙ <span>Runtime</span></button>
+      </nav>
+      <div class="side-status">
+        <span class="dot" id="side-dot"></span>
+        <div><strong id="side-health">Checking</strong><span>Nexus runtime</span></div>
+      </div>
+      <div class="side-version">SB-030 · AUTONOMOUS INTELLIGENCE LOOP · SB-029 ASSURANCE · SB-027 · WORLD MODEL + OSINT · SB-028 CHANGE ENGINE</div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">NEXUS-1000 · MASTER AUTHORITY</p>
+          <h1>Mission Control</h1>
+          <p class="subtitle">Research, GitHub intelligence, privacy routing, evidence, evolving beliefs and runtime health — one control plane.</p>
+        </div>
+        <div class="top-actions">
+          <span id="health" class="status-chip">checking</span>
+          <button id="refresh" class="ghost">Refresh</button>
+        </div>
+      </header>
+
+      <section id="overview" class="section-block">
+        <div class="metric-grid">
+          <article class="metric-card"><span>Total missions</span><strong id="metric-missions">—</strong><small>all recorded runs</small></article>
+          <article class="metric-card"><span>Completed</span><strong id="metric-completed">—</strong><small>canonical Nexus results</small></article>
+          <article class="metric-card"><span>Model providers</span><strong id="metric-models">—</strong><small id="metric-models-sub">configured</small></article>
+          <article class="metric-card"><span>Research providers</span><strong id="metric-search">—</strong><small id="metric-search-sub">configured</small></article>
+        </div>
+
+        <div class="dashboard-grid">
+          <section class="card span-2">
+            <div class="card-head"><div><p class="kicker">MASTER INPUT</p><h2>Ask SuperBrain</h2></div><span class="mini-badge">Nexus remains final judge</span></div>
+            <textarea id="mission" rows="5" maxlength="20000" placeholder="Ask a question or give SuperBrain a mission…"></textarea>
+            <div class="action-row">
+              <button id="autonomy-cycle" class="primary">Run intelligence cycle</button><button id="autonomous-research" class="secondary">Autonomous research</button>
+              <button id="deep-research" class="secondary">Deep research</button>
+              <button id="research" class="secondary">Research & answer</button>
+              <button id="ask" class="secondary">Quick answer</button>
+              <button id="demo" class="ghost">Run deterministic demo</button>
+            </div>
+            <div id="ask-status" class="inline-status"></div>
+            <div id="response" class="response hidden"></div>
+          </section>
+
+          <section class="card">
+            <div class="card-head"><div><p class="kicker">RUNTIME</p><h2>Readiness</h2></div><span id="runtime-badge" class="mini-badge">checking</span></div>
+            <div id="runtime-cards" class="runtime-list"></div>
+            <p id="setup-summary" class="muted">Checking runtime…</p>
+          </section>
+
+          <section class="card span-2">
+            <div class="card-head"><div><p class="kicker">AUTONOMOUS INTELLIGENCE</p><h2>Intelligence Loop</h2></div><span id="autonomy-badge" class="mini-badge">idle</span></div>
+            <p class="muted">Bounded loop: observe → research → Nexus → World Model → change detection → assurance. A failed assurance gate stops the cycle.</p>
+            <div id="autonomy-result" class="osint-result"><div class="muted">No autonomous cycle executed yet.</div></div>
+          </section>
+          <section class="card span-2">
+            <div class="card-head"><div><p class="kicker">LIVE OSINT</p><h2>Connectivity diagnostics</h2></div><span id="osint-badge" class="mini-badge">not tested</span></div>
+            <p class="muted">Run the guarded GitHub + DuckDuckGo + source retrieval probe from the machine hosting SuperBrain. If Tor is detected locally, it also checks Tor and the controlled onion diagnostic.</p>
+            <div class="action-row"><button id="osint-diagnostics" class="secondary">Run live OSINT test</button></div>
+            <div id="osint-result" class="osint-result"></div>
+          </section>
+          <section class="card">
+            <div class="card-head"><div><p class="kicker">BELIEF STATE</p><h2>World Model</h2></div><span id="world-badge" class="mini-badge">loading</span></div>
+            <div id="world-summary" class="world-summary">Loading beliefs…</div>
+          </section>
+          <section class="card span-3">
+            <div class="card-head"><div><p class="kicker">ACTIVITY</p><h2>Recent missions</h2></div><span id="mission-count-label" class="mini-badge">0 missions</span></div>
+            <div id="missions" class="mission-table"><div class="empty-state">Loading missions…</div></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="mission-detail" class="section-block detail-section">
+        <div class="section-title"><div><p class="kicker">INTELLIGENCE TRACE</p><h2>Selected mission</h2></div><span id="selected-status" class="mini-badge">none selected</span></div>
+        <div id="detail-empty" class="card empty-state">Select a mission above or run a new mission to inspect the full decision trace.</div>
+        <div id="detail-dashboard" class="hidden">
+          <div class="detail-summary-grid">
+            <article class="card"><span class="label">Final decision</span><strong id="detail-final" class="decision-value">—</strong></article>
+            <article class="card"><span class="label">Evidence</span><strong id="detail-evidence-count">0</strong></article>
+            <article class="card"><span class="label">Audit stages</span><strong id="detail-audit-count">0</strong></article>
+            <article class="card"><span class="label">Master decisions</span><strong id="detail-master-count">0</strong></article>
+          </div>
+          <section class="card mission-question-card"><span class="label">Mission</span><h3 id="detail-question">—</h3><div id="detail-world-model" class="world-detail hidden"></div><div class="meta-row"><span id="detail-run-id"></span><span id="detail-created"></span></div></section>
+
+          <div class="trace-grid">
+            <section class="card"><div class="card-head"><div><p class="kicker">PROVENANCE</p><h2>Evidence</h2></div></div><div id="evidence-list" class="stack-list"></div></section>
+            <section class="card"><div class="card-head"><div><p class="kicker">PIPELINE</p><h2>Audit trail</h2></div></div><div id="audit-list" class="timeline"></div></section>
+          </div>
+
+          <section class="card master-card">
+            <div class="card-head"><div><p class="kicker">MASTER AUTHORITY</p><h2>Your decision</h2></div><span class="mini-badge">append-only</span></div>
+            <div class="master-controls">
+              <select id="master-action">
+                <option value="ACCEPT">ACCEPT</option>
+                <option value="MODIFY">MODIFY</option>
+                <option value="RESEARCH_MORE">RESEARCH_MORE</option>
+                <option value="OVERRIDE">OVERRIDE</option>
+                <option value="REJECT">REJECT</option>
+              </select>
+              <input id="master-note" maxlength="10000" placeholder="Optional note or rationale">
+              <button id="save-master" class="primary">Record decision</button>
+            </div>
+            <span id="master-status" class="inline-status"></span>
+            <div id="master-history" class="decision-history"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="world-model" class="section-block">
+        <div class="section-title"><div><p class="kicker">PERSISTENT BELIEF LEDGER</p><h2>World Model</h2></div><span id="world-model-count" class="mini-badge">0 beliefs</span></div>
+        <section class="card">
+          <div id="world-model-list" class="world-list"><div class="empty-state">Loading world model…</div></div>
+        </section>
+      </section>
+
+      <section id="changes" class="section-block">
+        <div class="section-title"><div><p class="kicker">TEMPORAL INTELLIGENCE</p><h2>What changed?</h2></div><span id="changes-count" class="mini-badge">0 changes</span></div>
+        <section class="card"><div id="changes-list" class="world-list"><div class="empty-state">Loading change feed…</div></div></section>
+      </section>
+
+      <section id="runtime" class="section-block">
+        <div class="section-title"><div><p class="kicker">SYSTEM</p><h2>Runtime diagnostics</h2></div></div>
+        <section class="card"><pre id="setup-detail">Loading…</pre></section>
+      </section>
+
+      <pre id="detail" class="hidden"></pre>
+    </main>
+  </div>
+  <script src="/app.js?v=sb030"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "superbrain-orchestrator-v2-model-providers",
+  "version": "0.2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "npm run build:bridge --silent && node --test dist/tests/*.test.js",
+    "typecheck": "tsc --noEmit",
+    "build:bridge": "tsc",
+    "nexus-bridge": "npm run build:bridge --silent && node dist/src/nexus-bridge-cli.js",
+    "nexus-bridge:fixture": "npm run build:bridge --silent && node dist/src/nexus-bridge-fixture-cli.js",
+    "smoke": "npm run build:bridge --silent && node dist/examples/live-smoke.js",
+    "sb021:selftest": "npm run build:bridge --silent && node dist/src/sb021-selftest.js",
+    "sb021:live-smoke": "npm run build:bridge --silent && node dist/src/sb021-live-smoke.js"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "typescript": "^5.6.3"
+  }
+}
