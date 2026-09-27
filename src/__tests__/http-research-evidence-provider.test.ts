@@ -135,6 +135,13 @@ describe('HttpResearchEvidenceProvider', (): void => {
     expect(bundle.evidence[0].contentHash).toMatch(/^sha256:[a-f0-9]{64}$/);
     expect(bundle.evidence[0].claim).toContain('Primary source body with concrete evidence.');
     expect(bundle.evidence[0].claim).not.toContain('ignored()');
+    expect(bundle.evidence[0].claim).not.toContain('Primary discovery snippet.');
+    expect(bundle.evidence[0].claim).not.toContain('Primary source —');
+    expect(bundle.evidence[0]).toEqual(expect.objectContaining({
+      reliability: expect.any(Number),
+      freshness: 0.5,
+      relevance: 1,
+    }));
 
     expect(bundle.dissent).toEqual(expect.objectContaining({
       completed: true,

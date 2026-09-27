@@ -104,7 +104,9 @@ A successfully retrieved source becomes verified evidence with:
 - SHA-256 content hash over the actual response bytes;
 - retrieval timestamp and content type;
 - provider identity;
-- extracted source text included in the claim.
+- claim text derived only from the bytes SuperBrain fetched and hashed;
+- discovery titles/snippets are never promoted into verified claim text;
+- conservative source-quality metadata: relevance is tied to the selected source, reliability reflects transport/content validation, and freshness remains neutral when publication time is unknown.
 
 Primary evidence defaults to neutral stance. Dissent evidence defaults to
 challenge stance. Discovery endpoints can provide a valid explicit stance.
