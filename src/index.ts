@@ -91,3 +91,18 @@ export type {
   HttpResearchEvidenceProviderConfig,
   ResearchDiscoveryConfig,
 } from './mobile/http-research-evidence-provider.js';
+
+export {
+  RealitySentinel,
+  predictionContractHash,
+} from './core/reality-sentinel.js';
+export type {
+  PredictionAssumption,
+  PredictionContract,
+  RealityDriftState,
+  RealitySentinelAssessment,
+  RealitySentinelAuditItem,
+  RealitySentinelConfig,
+  RealitySignal,
+  RealitySignalDirection,
+} from './core/reality-sentinel.js';
