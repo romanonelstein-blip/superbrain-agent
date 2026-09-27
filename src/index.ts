@@ -83,3 +83,11 @@ export {
 export type {
   CommandMissionEvidenceProviderConfig,
 } from './mobile/command-evidence-provider.js';
+
+export {
+  HttpResearchEvidenceProvider,
+} from './mobile/http-research-evidence-provider.js';
+export type {
+  HttpResearchEvidenceProviderConfig,
+  ResearchDiscoveryConfig,
+} from './mobile/http-research-evidence-provider.js';
