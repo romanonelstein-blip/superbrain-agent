@@ -23,9 +23,7 @@ struct NewSuperBrainMissionIntent: AppIntent {
     var research: Bool
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Zet \(.$mission) klaar") {
-            \.$research
-        }
+        Summary("Zet \(\.$mission) klaar")
     }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
