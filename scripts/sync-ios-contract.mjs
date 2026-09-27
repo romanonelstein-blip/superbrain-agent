@@ -49,9 +49,9 @@ for (const capability of contract.capabilities) {
     }
   }
 
-  if (capability.verificationFile || capability.verificationToken) {
-    if (!capability.verificationFile || !capability.verificationToken) {
-      fail(`Capability ${capability.id} must define verificationFile and verificationToken together.`);
+  if (capability.verificationFile) {
+    if (!capability.verificationToken) {
+      fail(`Capability ${capability.id} defines verificationFile without verificationToken.`);
     }
     const verificationPath = path.join(root, capability.verificationFile);
     if (!fs.existsSync(verificationPath)) {
