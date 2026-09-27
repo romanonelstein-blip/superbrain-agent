@@ -86,7 +86,9 @@ afterEach(async (): Promise<void> => {
   while (servers.length > 0) {
     const server = servers.pop();
     if (!server) continue;
-    await new Promise<void>((resolve): void => server.close((): void => resolve()));
+    await new Promise<void>((resolve): void => {
+      server.close((): void => { resolve(); });
+    });
   }
 });
 
@@ -150,7 +152,7 @@ describe('HttpResearchEvidenceProvider', (): void => {
     expect((): HttpResearchEvidenceProvider => new HttpResearchEvidenceProvider({
       primary: { endpoint: 'http://example.com/search', providerName: 'primary' },
       dissent: { endpoint: 'https://example.org/search', providerName: 'dissent' },
-    })).not.toThrow();
+    })).toThrow('requires HTTPS');
   });
 
   test('status fails closed when private network discovery is not explicitly enabled', async (): Promise<void> => {

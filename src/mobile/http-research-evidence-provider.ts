@@ -82,8 +82,9 @@ export class HttpResearchEvidenceProvider implements MissionEvidenceProvider {
   };
 
   constructor(config: HttpResearchEvidenceProviderConfig) {
-    this.validateDiscoveryConfig(config.primary, 'primary');
-    this.validateDiscoveryConfig(config.dissent, 'dissent');
+    const allowInsecureHttpForTesting = config.allowInsecureHttpForTesting ?? false;
+    this.validateDiscoveryConfig(config.primary, 'primary', allowInsecureHttpForTesting);
+    this.validateDiscoveryConfig(config.dissent, 'dissent', allowInsecureHttpForTesting);
 
     if (
       config.primary.endpoint === config.dissent.endpoint
@@ -127,7 +128,7 @@ export class HttpResearchEvidenceProvider implements MissionEvidenceProvider {
         .map((host): string => host.trim().toLowerCase())
         .filter(Boolean),
       allowPrivateNetworksForTesting: config.allowPrivateNetworksForTesting ?? false,
-      allowInsecureHttpForTesting: config.allowInsecureHttpForTesting ?? false,
+      allowInsecureHttpForTesting,
     };
   }
 
@@ -520,9 +521,26 @@ export class HttpResearchEvidenceProvider implements MissionEvidenceProvider {
     return merged;
   }
 
-  private validateDiscoveryConfig(config: ResearchDiscoveryConfig, label: string): void {
+  private validateDiscoveryConfig(
+    config: ResearchDiscoveryConfig,
+    label: string,
+    allowInsecureHttpForTesting: boolean,
+  ): void {
     if (!config.endpoint.trim()) throw new Error(`${label} discovery endpoint is required.`);
     if (!config.providerName.trim()) throw new Error(`${label} providerName is required.`);
+
+    let url: URL;
+    try {
+      url = new URL(config.endpoint);
+    } catch {
+      throw new Error(`${label} discovery endpoint is invalid.`);
+    }
+    if (url.username || url.password) {
+      throw new Error(`${label} discovery endpoint may not contain credentials.`);
+    }
+    if (url.protocol !== 'https:' && !(allowInsecureHttpForTesting && url.protocol === 'http:')) {
+      throw new Error(`${label} discovery endpoint requires HTTPS.`);
+    }
   }
 
   private requireIntegerRange(value: number, minimum: number, maximum: number, field: string): void {
