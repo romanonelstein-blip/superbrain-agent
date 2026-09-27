@@ -2,6 +2,10 @@ name: SB-034 Live Provider Gate
 
 on:
   workflow_dispatch:
+  push:
+    branches: [sb-034-hermetic-ci]
+    paths:
+      - '.github/workflows/sb034-live-provider.yml'
 
 permissions:
   contents: read

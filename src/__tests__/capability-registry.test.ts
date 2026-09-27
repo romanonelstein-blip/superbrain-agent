@@ -1,1 +1,19 @@
-import { CapabilityRegistry } from '../core/capability-registry';describe('CapabilityRegistry', () => {const registry = new CapabilityRegistry();describe('getCapabilities', () => {test('should return capability registry object', async () => {const caps = await registry.getCapabilities();expect(caps).toHaveProperty('git');expect(caps).toHaveProperty('githubCli');expect(caps).toHaveProperty('ollama');});});});
+import { CapabilityRegistry } from '../core/capability-registry';
+
+describe('CapabilityRegistry', () => {
+  const registry = new CapabilityRegistry();
+
+  describe('getCapabilities', () => {
+    test(
+      'should return capability registry object',
+      async () => {
+        const caps = await registry.getCapabilities();
+
+        expect(caps).toHaveProperty('git');
+        expect(caps).toHaveProperty('githubCli');
+        expect(caps).toHaveProperty('ollama');
+      },
+      15000,
+    );
+  });
+});
