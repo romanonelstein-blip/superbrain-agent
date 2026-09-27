@@ -76,3 +76,10 @@ export type {
   MissionEvidenceProviderStatus,
   NexusDecisionEngine,
 } from './mobile/nexus-mission-executor.js';
+
+export {
+  CommandMissionEvidenceProvider,
+} from './mobile/command-evidence-provider.js';
+export type {
+  CommandMissionEvidenceProviderConfig,
+} from './mobile/command-evidence-provider.js';

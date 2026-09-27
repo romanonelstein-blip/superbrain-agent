@@ -57,3 +57,13 @@ remote HTTP.
 
 The server also advertises the SuperBrain version, mobile API version and
 capability IDs so the iOS app can detect compatibility drift.
+
+## Evidence provider
+
+To make interactive/research missions available, configure a protocol-v1
+evidence provider with `SUPERBRAIN_EVIDENCE_PROVIDER_COMMAND`. See
+`docs/evidence-provider-protocol.md`.
+
+Mission Control calls the provider without a shell, validates all returned
+provenance, then sends the evidence to NEXUS. Provider output alone can
+never grant approval.
