@@ -369,7 +369,7 @@ export class HttpResearchEvidenceProvider implements MissionEvidenceProvider {
         if (contentHashes.has(source.contentHash)) continue;
         contentHashes.add(source.contentHash);
 
-        const claim = this.buildClaim(result, source);
+        const claim = this.buildGroundedClaim(source);
         if (!claim) continue;
 
         evidence.push({
@@ -378,6 +378,9 @@ export class HttpResearchEvidenceProvider implements MissionEvidenceProvider {
           stance: result.stance ?? defaultStance,
           sourceId: source.url,
           sourceFamily: new URL(source.url).hostname.toLowerCase(),
+          reliability: this.sourceReliability(source),
+          freshness: this.sourceFreshness(source),
+          relevance: 1,
           verified: true,
           citation: source.url,
           contentHash: source.contentHash,
@@ -451,17 +454,30 @@ export class HttpResearchEvidenceProvider implements MissionEvidenceProvider {
     throw new Error('Source retrieval failed.');
   }
 
-  private buildClaim(result: DiscoveryResult, source: RetrievedSource): string {
-    const parts = [
-      result.title?.trim(),
-      result.snippet?.trim(),
-      source.text.slice(0, 1200).trim(),
-    ].filter((part): part is string => Boolean(part));
-
-    return Array.from(new Set(parts))
-      .join(' — ')
+  private buildGroundedClaim(source: RetrievedSource): string {
+    // Discovery metadata is intentionally excluded here. Search titles and
+    // snippets help us find a URL, but only bytes fetched and hashed by
+    // SuperBrain are allowed to become verified claim text.
+    return source.text
       .slice(0, 4000)
       .trim();
+  }
+
+  private sourceReliability(source: RetrievedSource): number {
+    const url = new URL(source.url);
+    const protocolScore = url.protocol === 'https:' ? 0.1 : 0;
+    const contentScore = source.contentType === 'text/html' || source.contentType === 'text/plain'
+      ? 0.8
+      : 0.7;
+    return Math.min(1, contentScore + protocolScore);
+  }
+
+  private sourceFreshness(source: RetrievedSource): number {
+    void source;
+    // Retrieval time is known, but publication time is not. Do not invent
+    // recency. A conservative neutral score keeps NEXUS from treating a
+    // freshly fetched old document as freshly published information.
+    return 0.5;
   }
 
   private htmlToText(html: string): string {
