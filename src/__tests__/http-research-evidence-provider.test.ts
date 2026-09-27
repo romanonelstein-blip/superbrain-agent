@@ -148,7 +148,8 @@ describe('HttpResearchEvidenceProvider', (): void => {
         }),
       ],
     }));
-    expect(bundle.verificationNote).toContain('independent primary and dissent');
+    expect(bundle.verificationNote).toContain('Research diversity gate passed');
+    expect(bundle.verificationNote).toContain('independent dissent source');
   });
 
   test('research mode fails closed when primary evidence lacks source diversity', async (): Promise<void> => {
