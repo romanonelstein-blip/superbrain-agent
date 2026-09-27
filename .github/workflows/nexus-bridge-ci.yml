@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/nexus1000-bridge
+      - fix/github-auth-verification
   pull_request:
     paths:
       - 'src/**'
