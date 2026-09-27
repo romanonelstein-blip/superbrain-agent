@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { NexusBridge } from '../core/nexus.js';
 import { CommandMissionEvidenceProvider } from './command-evidence-provider.js';
+import { HttpResearchEvidenceProvider } from './http-research-evidence-provider.js';
 import { MissionControlServer } from './mission-control.js';
 import {
   NexusMissionExecutor,
@@ -34,6 +35,39 @@ function parseEvidenceProviderArgs(value: string | undefined): string[] {
 
 function evidenceProviderFromEnvironment(): MissionEvidenceProvider {
   const command = process.env.SUPERBRAIN_EVIDENCE_PROVIDER_COMMAND?.trim();
+  const primaryEndpoint = process.env.SUPERBRAIN_RESEARCH_PRIMARY_ENDPOINT?.trim();
+  const dissentEndpoint = process.env.SUPERBRAIN_RESEARCH_DISSENT_ENDPOINT?.trim();
+
+  if (command && (primaryEndpoint || dissentEndpoint)) {
+    throw new Error('Configure either command evidence mode or HTTP research mode, not both.');
+  }
+
+  if (primaryEndpoint || dissentEndpoint) {
+    if (!primaryEndpoint || !dissentEndpoint) {
+      throw new Error('HTTP research mode requires both primary and dissent endpoints.');
+    }
+    return new HttpResearchEvidenceProvider({
+      primary: {
+        endpoint: primaryEndpoint,
+        providerName: process.env.SUPERBRAIN_RESEARCH_PRIMARY_NAME?.trim() || 'primary-research',
+        ...(process.env.SUPERBRAIN_RESEARCH_PRIMARY_TOKEN
+          ? { bearerToken: process.env.SUPERBRAIN_RESEARCH_PRIMARY_TOKEN }
+          : {}),
+      },
+      dissent: {
+        endpoint: dissentEndpoint,
+        providerName: process.env.SUPERBRAIN_RESEARCH_DISSENT_NAME?.trim() || 'dissent-research',
+        ...(process.env.SUPERBRAIN_RESEARCH_DISSENT_TOKEN
+          ? { bearerToken: process.env.SUPERBRAIN_RESEARCH_DISSENT_TOKEN }
+          : {}),
+      },
+      allowedSourceHosts: (process.env.SUPERBRAIN_RESEARCH_ALLOWED_HOSTS ?? '')
+        .split(',')
+        .map((host): string => host.trim())
+        .filter(Boolean),
+    });
+  }
+
   if (!command) return new UnavailableMissionEvidenceProvider();
 
   const timeoutMs = Number.parseInt(process.env.SUPERBRAIN_EVIDENCE_PROVIDER_TIMEOUT_MS ?? '60000', 10);
@@ -91,8 +125,10 @@ async function main(): Promise<void> {
   console.log('NEXUS is connected through the mission executor.');
   console.log(
     process.env.SUPERBRAIN_EVIDENCE_PROVIDER_COMMAND
-      ? 'Configured evidence provider will be validated before missions become available.'
-      : 'Mission execution remains fail-closed until SUPERBRAIN_EVIDENCE_PROVIDER_COMMAND is configured.',
+      ? 'Configured command evidence provider will be validated before missions become available.'
+      : process.env.SUPERBRAIN_RESEARCH_PRIMARY_ENDPOINT
+        ? 'Configured HTTP research providers will be validated before missions become available.'
+        : 'Mission execution remains fail-closed until an evidence provider is configured.',
   );
 
   let stopping = false;

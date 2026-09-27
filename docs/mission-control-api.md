@@ -67,3 +67,14 @@ evidence provider with `SUPERBRAIN_EVIDENCE_PROVIDER_COMMAND`. See
 Mission Control calls the provider without a shell, validates all returned
 provenance, then sends the evidence to NEXUS. Provider output alone can
 never grant approval.
+
+## Built-in HTTP research mode
+
+Mission Control can use the built-in HTTP research provider instead of a
+command evidence provider. Configure both
+`SUPERBRAIN_RESEARCH_PRIMARY_ENDPOINT` and
+`SUPERBRAIN_RESEARCH_DISSENT_ENDPOINT`.
+
+SuperBrain performs the actual source fetches and hashes the retrieved
+bytes before sending evidence to NEXUS. See
+`docs/http-research-provider.md`.
