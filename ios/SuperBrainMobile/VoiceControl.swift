@@ -8,6 +8,7 @@ final class VoiceControl: ObservableObject {
         case refresh
         case openSettings
         case mission(text: String, research: Bool)
+        case realityFork(String)
         case draft(String)
     }
 
@@ -130,6 +131,16 @@ final class VoiceControl: ObservableObject {
         }
         if normalized.contains("open instellingen") || normalized == "instellingen" {
             return .openSettings
+        }
+        if normalized == "fork deze beslissing" || normalized == "vertak deze beslissing" {
+            return .realityFork("")
+        }
+
+        let forkPrefixes = ["fork ", "vertak ", "reality fork "]
+        for prefix in forkPrefixes where normalized.hasPrefix(prefix) {
+            let start = text.index(text.startIndex, offsetBy: min(prefix.count, text.count))
+            let decision = String(text[start...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !decision.isEmpty { return .realityFork(decision) }
         }
 
         let researchPrefixes = ["onderzoek ", "start onderzoek ", "research "]
