@@ -2,8 +2,13 @@ import 'dotenv/config';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { NexusBridge } from '../core/nexus.js';
+import { CommandMissionEvidenceProvider } from './command-evidence-provider.js';
 import { MissionControlServer } from './mission-control.js';
-import { NexusMissionExecutor, UnavailableMissionEvidenceProvider } from './nexus-mission-executor.js';
+import {
+  NexusMissionExecutor,
+  type MissionEvidenceProvider,
+  UnavailableMissionEvidenceProvider,
+} from './nexus-mission-executor.js';
 
 interface PackageMetadata {
   version: string;
@@ -16,6 +21,30 @@ interface MobileContract {
 
 async function readJson<T>(path: string): Promise<T> {
   return JSON.parse(await readFile(path, 'utf8')) as T;
+}
+
+function parseEvidenceProviderArgs(value: string | undefined): string[] {
+  if (!value?.trim()) return [];
+  const parsed = JSON.parse(value) as unknown;
+  if (!Array.isArray(parsed) || parsed.some((item): boolean => typeof item !== 'string')) {
+    throw new Error('SUPERBRAIN_EVIDENCE_PROVIDER_ARGS must be a JSON array of strings.');
+  }
+  return parsed as string[];
+}
+
+function evidenceProviderFromEnvironment(): MissionEvidenceProvider {
+  const command = process.env.SUPERBRAIN_EVIDENCE_PROVIDER_COMMAND?.trim();
+  if (!command) return new UnavailableMissionEvidenceProvider();
+
+  const timeoutMs = Number.parseInt(process.env.SUPERBRAIN_EVIDENCE_PROVIDER_TIMEOUT_MS ?? '60000', 10);
+  if (!Number.isInteger(timeoutMs)) throw new Error('SUPERBRAIN_EVIDENCE_PROVIDER_TIMEOUT_MS must be an integer.');
+
+  return new CommandMissionEvidenceProvider({
+    command,
+    args: parseEvidenceProviderArgs(process.env.SUPERBRAIN_EVIDENCE_PROVIDER_ARGS),
+    providerName: process.env.SUPERBRAIN_EVIDENCE_PROVIDER_NAME?.trim() || 'configured-evidence-provider',
+    timeoutMs,
+  });
 }
 
 async function main(): Promise<void> {
@@ -53,14 +82,18 @@ async function main(): Promise<void> {
     capabilities: contract.capabilities.map((capability): string => capability.id),
     executor: new NexusMissionExecutor(
       new NexusBridge(),
-      new UnavailableMissionEvidenceProvider(),
+      evidenceProviderFromEnvironment(),
     ),
   });
 
   const address = await server.listen();
   console.log(`SuperBrain Mission Control listening on ${address.url}`);
   console.log('NEXUS is connected through the mission executor.');
-  console.log('Mission execution remains fail-closed until a real evidence provider is connected.');
+  console.log(
+    process.env.SUPERBRAIN_EVIDENCE_PROVIDER_COMMAND
+      ? 'Configured evidence provider will be validated before missions become available.'
+      : 'Mission execution remains fail-closed until SUPERBRAIN_EVIDENCE_PROVIDER_COMMAND is configured.',
+  );
 
   let stopping = false;
   const shutdown = async (): Promise<void> => {
