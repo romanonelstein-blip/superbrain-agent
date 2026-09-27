@@ -21,6 +21,16 @@ final class MissionStore: ObservableObject {
         latestResponse = nil
     }
 
+    func disconnect() {
+        try? AccessToken.save("")
+        address = ""
+        UserDefaults.standard.removeObject(forKey: "serverAddress")
+        status = nil
+        missions = []
+        latestResponse = nil
+        error = nil
+    }
+
     func refresh() async {
         guard !address.isEmpty else { return }
         do {
@@ -136,6 +146,7 @@ struct SettingsView: View {
     @State private var address = ""
     @State private var token = ""
     @State private var error: String?
+    @AppStorage("requireLocalAuth") private var requireLocalAuth = true
 
     var body: some View {
         NavigationStack {
@@ -148,6 +159,17 @@ struct SettingsView: View {
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
                     Text("De iPhone-app gebruikt de Mission Control API. Het token wordt alleen op dit toestel in de sleutelhanger opgeslagen.")
                         .font(.footnote).foregroundStyle(.secondary)
+                }
+                Section("Appbeveiliging") {
+                    Toggle("Face ID / toegangscode", isOn: $requireLocalAuth)
+                    Text("Wanneer dit aanstaat, vergrendelt SuperBrain opnieuw nadat de app naar de achtergrond is gegaan.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Button("Verwijder verbinding", role: .destructive) {
+                        store.disconnect()
+                        address = ""
+                        token = ""
+                    }
                 }
                 if let error { Text(error).foregroundStyle(.red) }
             }

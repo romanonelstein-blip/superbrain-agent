@@ -60,9 +60,27 @@ jobs:
             "$RUNNER_TEMP/iphone-package/Payload/SuperBrainMobile.app"
           cd "$RUNNER_TEMP/iphone-package"
           zip -qry "$RUNNER_TEMP/SuperBrainMobile-iPhone-unsigned.ipa" Payload
+      - name: Verify unsigned iPhone IPA
+        run: |
+          set -euo pipefail
+          IPA="$RUNNER_TEMP/SuperBrainMobile-iPhone-unsigned.ipa"
+          VERIFY_DIR="$RUNNER_TEMP/ipa-verify"
+          test -s "$IPA"
+          unzip -t "$IPA" >/dev/null
+          rm -rf "$VERIFY_DIR"
+          mkdir -p "$VERIFY_DIR"
+          unzip -q "$IPA" -d "$VERIFY_DIR"
+          test -f "$VERIFY_DIR/Payload/SuperBrainMobile.app/SuperBrainMobile"
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$VERIFY_DIR/Payload/SuperBrainMobile.app/Info.plist")
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$VERIFY_DIR/Payload/SuperBrainMobile.app/Info.plist")
+          test "$BUNDLE_ID" = "com.romanonelstein.superbrainmobile"
+          test "$VERSION" = "0.2.0"
+          shasum -a 256 "$IPA" | tee "$RUNNER_TEMP/SuperBrainMobile-iPhone-unsigned.sha256"
       - uses: actions/upload-artifact@v4
         with:
           name: SuperBrainMobile-iPhone-unsigned
-          path: ${{ runner.temp }}/SuperBrainMobile-iPhone-unsigned.ipa
+          path: |
+            ${{ runner.temp }}/SuperBrainMobile-iPhone-unsigned.ipa
+            ${{ runner.temp }}/SuperBrainMobile-iPhone-unsigned.sha256
           if-no-files-found: error
           retention-days: 7
