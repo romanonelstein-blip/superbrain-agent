@@ -244,7 +244,7 @@ struct MissionDetailView: View {
     }
 
     private func load() async {
-        do { detail = try await store.api.detail(id); error = nil }
-        catch { error = error.localizedDescription }
+        do { detail = try await store.api.detail(id); self.error = nil }
+        catch { self.error = error.localizedDescription }
     }
 }
