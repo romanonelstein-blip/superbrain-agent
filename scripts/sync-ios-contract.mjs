@@ -48,6 +48,20 @@ for (const capability of contract.capabilities) {
       fail(`MissionAPI.swift does not contain integration token for ${capability.id}: ${capability.verificationToken}`);
     }
   }
+
+  if (capability.verificationFile) {
+    if (!capability.verificationToken) {
+      fail(`Capability ${capability.id} defines verificationFile without verificationToken.`);
+    }
+    const verificationPath = path.join(root, capability.verificationFile);
+    if (!fs.existsSync(verificationPath)) {
+      fail(`Verification file is missing for ${capability.id}: ${capability.verificationFile}`);
+    }
+    const verificationSource = fs.readFileSync(verificationPath, 'utf8');
+    if (!verificationSource.includes(capability.verificationToken)) {
+      fail(`${capability.verificationFile} does not contain verification token for ${capability.id}: ${capability.verificationToken}`);
+    }
+  }
 }
 
 const versionMatches = [...projectSource.matchAll(/MARKETING_VERSION = ([^;]+);/g)].map(match => match[1]);

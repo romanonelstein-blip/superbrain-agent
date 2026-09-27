@@ -1,6 +1,16 @@
-name: iOS simulator build (manual)
+name: iOS Xcode build
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - 'shared/superbrain-mobile-contract.json'
+      - 'scripts/sync-ios-contract.mjs'
+      - 'package.json'
+      - 'src/**'
+      - 'python/**'
+      - '.github/workflows/ios-simulator-build.yml'
   push:
     branches: [main, sb-ios-cloud-build]
     paths:

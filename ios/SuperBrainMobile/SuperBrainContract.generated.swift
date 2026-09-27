@@ -16,7 +16,7 @@ enum SuperBrainContract {
     static let schemaVersion = 1
     static let coreVersion = "0.1.0"
     static let apiVersion = "1"
-    static let iosClientVersion = "0.2.0"
+    static let iosClientVersion = "0.3.0"
 
     static let capabilities: [BundledCapability] = [
         BundledCapability(
@@ -103,6 +103,42 @@ enum SuperBrainContract {
         BundledCapability(
             id: "secure_token_storage",
             title: "Sleutelhanger-tokenopslag",
+            kind: "client",
+            method: nil,
+            endpoint: nil,
+            mobileSupport: "native",
+            required: true
+        ),
+        BundledCapability(
+            id: "deluxe_cockpit",
+            title: "SuperBrain deluxe cockpit",
+            kind: "client",
+            method: nil,
+            endpoint: nil,
+            mobileSupport: "native",
+            required: true
+        ),
+        BundledCapability(
+            id: "voice_control",
+            title: "In-app voice control",
+            kind: "client",
+            method: nil,
+            endpoint: nil,
+            mobileSupport: "native",
+            required: true
+        ),
+        BundledCapability(
+            id: "siri_shortcuts",
+            title: "Siri en Shortcuts",
+            kind: "client",
+            method: nil,
+            endpoint: nil,
+            mobileSupport: "native",
+            required: true
+        ),
+        BundledCapability(
+            id: "reality_fork_v1",
+            title: "NEXUS Reality Fork v1",
             kind: "client",
             method: nil,
             endpoint: nil,

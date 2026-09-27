@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "apiVersion": "1",
-  "iosClientVersion": "0.2.0",
+  "iosClientVersion": "0.3.0",
   "capabilities": [
     {
       "id": "runtime_status",
@@ -88,6 +88,42 @@
       "id": "secure_token_storage",
       "title": "Sleutelhanger-tokenopslag",
       "kind": "client",
+      "mobileSupport": "native",
+      "required": true
+    },
+    {
+      "id": "deluxe_cockpit",
+      "title": "SuperBrain deluxe cockpit",
+      "kind": "client",
+      "verificationFile": "ios/SuperBrainMobile/SuperBrainDashboard.swift",
+      "verificationToken": "struct SuperBrainDashboard",
+      "mobileSupport": "native",
+      "required": true
+    },
+    {
+      "id": "voice_control",
+      "title": "In-app voice control",
+      "kind": "client",
+      "verificationFile": "ios/SuperBrainMobile/VoiceControl.swift",
+      "verificationToken": "final class VoiceControl",
+      "mobileSupport": "native",
+      "required": true
+    },
+    {
+      "id": "siri_shortcuts",
+      "title": "Siri en Shortcuts",
+      "kind": "client",
+      "verificationFile": "ios/SuperBrainMobile/SuperBrainShortcuts.swift",
+      "verificationToken": "struct SuperBrainShortcuts",
+      "mobileSupport": "native",
+      "required": true
+    },
+    {
+      "id": "reality_fork_v1",
+      "title": "NEXUS Reality Fork v1",
+      "kind": "client",
+      "verificationFile": "ios/SuperBrainMobile/RealityFork.swift",
+      "verificationToken": "struct RealityForkDraft",
       "mobileSupport": "native",
       "required": true
     }
