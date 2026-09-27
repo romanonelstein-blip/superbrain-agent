@@ -5,6 +5,7 @@ struct SuperBrainDashboard: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var voice = VoiceControl()
     @State private var showSettings = false
+    @State private var showRealityFork = false
     @State private var question = ""
     @State private var research = false
 
@@ -22,6 +23,7 @@ struct SuperBrainDashboard: View {
                         } else {
                             nexusHero
                             metrics
+                            realityForkCard
                             voiceCard
                             missionComposer
 
@@ -41,6 +43,7 @@ struct SuperBrainDashboard: View {
             .navigationBarHidden(true)
             .navigationDestination(for: String.self) { MissionDetailView(id: $0) }
             .sheet(isPresented: $showSettings) { SettingsView() }
+            .sheet(isPresented: $showRealityFork) { RealityForkSheet(seed: question) }
             .task {
                 consumeShortcutMission()
                 if !store.address.isEmpty {
@@ -174,6 +177,50 @@ struct SuperBrainDashboard: View {
         }
     }
 
+    private var realityForkCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(SuperBrainTheme.accent)
+                        .frame(width: 54, height: 54)
+                    Image(systemName: "point.3.filled.connected.trianglepath.dotted")
+                        .font(.title2.bold())
+                        .foregroundStyle(.white)
+                }
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("NEXUS Reality Fork")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                    Text("Vertak een beslissing in toetsbare toekomstpaden, aannames en reality-signals.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+
+            HStack(spacing: 8) {
+                StatusChip(title: "Prediction Contract", systemImage: "lock.shield", active: true)
+                StatusChip(title: "Fail-closed scoring", systemImage: "checkmark.seal", active: true)
+            }
+
+            Button {
+                showRealityFork = true
+            } label: {
+                HStack {
+                    Label("Fork een beslissing", systemImage: "arrow.triangle.branch")
+                        .fontWeight(.bold)
+                    Spacer()
+                    Image(systemName: "arrow.up.right")
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.white.opacity(0.18))
+        }
+        .superBrainGlassCard()
+    }
+
     private var voiceCard: some View {
         VStack(spacing: 16) {
             CockpitSectionHeader("Voice Control", subtitle: "Praat rechtstreeks met de cockpit")
@@ -223,7 +270,7 @@ struct SuperBrainDashboard: View {
                 .buttonStyle(.borderedProminent)
             }
 
-            Text("Voorbeelden: “vernieuw status”, “open instellingen”, “onderzoek quantum computing”, of spreek gewoon je vraag in.")
+            Text("Voorbeelden: “vernieuw status”, “onderzoek quantum computing”, “fork deze beslissing”, of spreek gewoon je vraag in.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -365,6 +412,9 @@ struct SuperBrainDashboard: View {
             question = text
             research = shouldResearch
             startMission()
+        case .realityFork(let text):
+            if !text.isEmpty { question = text }
+            showRealityFork = true
         case .draft(let text):
             question = text
         }
