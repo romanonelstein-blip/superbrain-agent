@@ -12,7 +12,9 @@
     "test:coverage": "npm run build && node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --coverage && node --test tests/github.test.mjs",
     "lint": "eslint \"src/**/*.ts\"",
     "start": "node dist/index.js",
-    "test:github": "npm run build && node --test tests/github.test.mjs"
+    "test:github": "npm run build && node --test tests/github.test.mjs",
+    "ios:sync": "node scripts/sync-ios-contract.mjs",
+    "ios:check": "node scripts/sync-ios-contract.mjs --check"
   },
   "dependencies": {
     "chalk": "^5.3.0",

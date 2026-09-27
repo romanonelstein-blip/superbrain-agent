@@ -1,0 +1,37 @@
+name: Mobile Contract Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'python/**'
+      - 'package.json'
+      - 'shared/superbrain-mobile-contract.json'
+      - 'scripts/sync-ios-contract.mjs'
+      - 'ios/**'
+  push:
+    branches: [main, sb-ios-cloud-build]
+    paths:
+      - 'src/**'
+      - 'python/**'
+      - 'package.json'
+      - 'shared/superbrain-mobile-contract.json'
+      - 'scripts/sync-ios-contract.mjs'
+      - 'ios/**'
+      - '.github/workflows/mobile-contract-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Require synchronized iOS contract
+        run: node scripts/sync-ios-contract.mjs --check

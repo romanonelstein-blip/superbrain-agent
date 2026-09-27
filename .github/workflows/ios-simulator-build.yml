@@ -1,0 +1,94 @@
+name: iOS simulator build (manual)
+
+on:
+  push:
+    branches: [main, sb-ios-cloud-build]
+    paths:
+      - 'ios/**'
+      - 'shared/superbrain-mobile-contract.json'
+      - 'scripts/sync-ios-contract.mjs'
+      - 'package.json'
+      - 'src/**'
+      - 'python/**'
+      - '.github/workflows/ios-simulator-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify SuperBrain ↔ iOS contract sync
+        run: node scripts/sync-ios-contract.mjs --check
+      - name: Show Xcode version
+        run: xcodebuild -version
+      - name: Compile unsigned iOS Simulator app
+        run: |
+          xcodebuild \
+            -project ios/SuperBrainMobile.xcodeproj \
+            -scheme SuperBrainMobile \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/superbrain-ios" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Archive simulator build
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$RUNNER_TEMP/superbrain-ios/Build/Products/Debug-iphonesimulator/SuperBrainMobile.app" \
+            "$RUNNER_TEMP/SuperBrainMobile-Simulator.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SuperBrainMobile-Simulator-unsigned
+          path: ${{ runner.temp }}/SuperBrainMobile-Simulator.zip
+          if-no-files-found: error
+          retention-days: 7
+      - name: Compile unsigned iPhone app
+        run: |
+          xcodebuild \
+            -project ios/SuperBrainMobile.xcodeproj \
+            -scheme SuperBrainMobile \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/superbrain-device" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Package unsigned iPhone IPA
+        run: |
+          mkdir -p "$RUNNER_TEMP/iphone-package/Payload"
+          ditto \
+            "$RUNNER_TEMP/superbrain-device/Build/Products/Release-iphoneos/SuperBrainMobile.app" \
+            "$RUNNER_TEMP/iphone-package/Payload/SuperBrainMobile.app"
+          cd "$RUNNER_TEMP/iphone-package"
+          zip -qry "$RUNNER_TEMP/SuperBrainMobile-iPhone-unsigned.ipa" Payload
+      - name: Verify unsigned iPhone IPA
+        run: |
+          set -euo pipefail
+          IPA="$RUNNER_TEMP/SuperBrainMobile-iPhone-unsigned.ipa"
+          VERIFY_DIR="$RUNNER_TEMP/ipa-verify"
+          test -s "$IPA"
+          unzip -t "$IPA" >/dev/null
+          rm -rf "$VERIFY_DIR"
+          mkdir -p "$VERIFY_DIR"
+          unzip -q "$IPA" -d "$VERIFY_DIR"
+          test -f "$VERIFY_DIR/Payload/SuperBrainMobile.app/SuperBrainMobile"
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$VERIFY_DIR/Payload/SuperBrainMobile.app/Info.plist")
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$VERIFY_DIR/Payload/SuperBrainMobile.app/Info.plist")
+          EXPECTED_VERSION=$(python3 -c 'import json; print(json.load(open("shared/superbrain-mobile-contract.json"))["iosClientVersion"])')
+          test "$BUNDLE_ID" = "com.romanonelstein.superbrainmobile"
+          test "$VERSION" = "$EXPECTED_VERSION"
+          shasum -a 256 "$IPA" | tee "$RUNNER_TEMP/SuperBrainMobile-iPhone-unsigned.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SuperBrainMobile-iPhone-unsigned
+          path: |
+            ${{ runner.temp }}/SuperBrainMobile-iPhone-unsigned.ipa
+            ${{ runner.temp }}/SuperBrainMobile-iPhone-unsigned.sha256
+          if-no-files-found: error
+          retention-days: 7
