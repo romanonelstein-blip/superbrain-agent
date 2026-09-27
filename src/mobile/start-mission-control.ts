@@ -1,7 +1,9 @@
 import 'dotenv/config';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { MissionControlServer, UnavailableMissionExecutor } from './mission-control.js';
+import { NexusBridge } from '../core/nexus.js';
+import { MissionControlServer } from './mission-control.js';
+import { NexusMissionExecutor, UnavailableMissionEvidenceProvider } from './nexus-mission-executor.js';
 
 interface PackageMetadata {
   version: string;
@@ -49,12 +51,16 @@ async function main(): Promise<void> {
     superBrainVersion: pkg.version,
     apiVersion: contract.apiVersion,
     capabilities: contract.capabilities.map((capability): string => capability.id),
-    executor: new UnavailableMissionExecutor(),
+    executor: new NexusMissionExecutor(
+      new NexusBridge(),
+      new UnavailableMissionEvidenceProvider(),
+    ),
   });
 
   const address = await server.listen();
   console.log(`SuperBrain Mission Control listening on ${address.url}`);
-  console.log('Mission execution is fail-closed until a real MissionExecutor is connected.');
+  console.log('NEXUS is connected through the mission executor.');
+  console.log('Mission execution remains fail-closed until a real evidence provider is connected.');
 
   let stopping = false;
   const shutdown = async (): Promise<void> => {

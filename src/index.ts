@@ -65,3 +65,14 @@ export type {
   MissionResponse,
   MissionSummary,
 } from './mobile/mission-control.js';
+
+export {
+  NexusMissionExecutor,
+  UnavailableMissionEvidenceProvider,
+} from './mobile/nexus-mission-executor.js';
+export type {
+  MissionEvidenceBundle,
+  MissionEvidenceProvider,
+  MissionEvidenceProviderStatus,
+  NexusDecisionEngine,
+} from './mobile/nexus-mission-executor.js';

@@ -12,9 +12,15 @@ Mission Control is the HTTP boundary used by the SuperBrain iOS app.
 - remote iPhone access should terminate TLS in front of Mission Control;
 - mission execution is fail-closed when no real `MissionExecutor` is attached.
 
-The standalone command never invents NEXUS evidence or results. It exposes
-status/history/decision storage, but reports interactive and research
-missions unavailable until a real executor is integrated.
+The standalone command never invents NEXUS evidence or results. It now
+uses `NexusMissionExecutor` to connect Mission Control to the canonical
+NEXUS bridge, but still reports interactive and research missions
+unavailable until a real evidence provider is integrated.
+
+`NexusMissionExecutor` only exposes mobile `YES` when the NEXUS decision
+is actually approved after all canonical gates. A raw `YES` with a failed
+gate becomes mobile `NO`. Gate outcomes are written into the mission
+audit trail.
 
 ## Start
 
