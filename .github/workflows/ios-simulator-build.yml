@@ -41,3 +41,28 @@ jobs:
           path: ${{ runner.temp }}/SuperBrainMobile-Simulator.zip
           if-no-files-found: error
           retention-days: 7
+      - name: Compile unsigned iPhone app
+        run: |
+          xcodebuild \
+            -project ios/SuperBrainMobile.xcodeproj \
+            -scheme SuperBrainMobile \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/superbrain-device" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Package unsigned iPhone IPA
+        run: |
+          mkdir -p "$RUNNER_TEMP/iphone-package/Payload"
+          ditto \
+            "$RUNNER_TEMP/superbrain-device/Build/Products/Release-iphoneos/SuperBrainMobile.app" \
+            "$RUNNER_TEMP/iphone-package/Payload/SuperBrainMobile.app"
+          cd "$RUNNER_TEMP/iphone-package"
+          zip -qry "$RUNNER_TEMP/SuperBrainMobile-iPhone-unsigned.ipa" Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SuperBrainMobile-iPhone-unsigned
+          path: ${{ runner.temp }}/SuperBrainMobile-iPhone-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
