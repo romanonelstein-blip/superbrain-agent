@@ -1,7 +1,7 @@
 import type {
+  CrmDataGateway,
   CrmDataGatewayResponse,
   CrmDataRequest,
-  CrmDataGateway,
 } from './data-gateway.js';
 
 export type NovaProspectsSignalKind =
@@ -20,6 +20,9 @@ export interface NovaProspectsSignalSubject {
 export interface NovaProspectsSignalPolicy {
   allowExternalEnrichment: boolean;
   allowEmailDiscovery: boolean;
+  allowedProviders?: readonly string[];
+  preferredProviders?: readonly string[];
+  maxProviderAttempts?: number;
 }
 
 export interface NovaProspectsSignal {
@@ -66,24 +69,59 @@ function normalized(value: string | undefined): string | undefined {
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
 }
 
-function companyEnrichment(domain: string): CrmDataRequest {
+function providerPolicy(
+  policy: NovaProspectsSignalPolicy,
+): Pick<CrmDataRequest, 'allowedProviders' | 'preferredProviders' | 'maxProviderAttempts'> {
+  if (
+    policy.maxProviderAttempts !== undefined
+    && (!Number.isInteger(policy.maxProviderAttempts) || policy.maxProviderAttempts < 1)
+  ) {
+    throw new Error('maxProviderAttempts must be a positive integer');
+  }
+
+  return {
+    ...(policy.allowedProviders !== undefined
+      ? { allowedProviders: [...policy.allowedProviders] }
+      : {}),
+    ...(policy.preferredProviders !== undefined
+      ? { preferredProviders: [...policy.preferredProviders] }
+      : {}),
+    ...(policy.maxProviderAttempts !== undefined
+      ? { maxProviderAttempts: policy.maxProviderAttempts }
+      : {}),
+  };
+}
+
+function companyEnrichment(
+  domain: string,
+  policy: ReturnType<typeof providerPolicy>,
+): CrmDataRequest {
   return {
     capability: 'COMPANY_ENRICHMENT',
     input: { domain },
+    ...policy,
   };
 }
 
-function personEnrichment(email: string): CrmDataRequest {
+function personEnrichment(
+  email: string,
+  policy: ReturnType<typeof providerPolicy>,
+): CrmDataRequest {
   return {
     capability: 'PERSON_ENRICHMENT',
     input: { email },
+    ...policy,
   };
 }
 
-function emailVerification(email: string): CrmDataRequest {
+function emailVerification(
+  email: string,
+  policy: ReturnType<typeof providerPolicy>,
+): CrmDataRequest {
   return {
     capability: 'EMAIL_VERIFY',
     input: { email },
+    ...policy,
   };
 }
 
@@ -91,6 +129,7 @@ function emailDiscovery(
   firstName: string,
   lastName: string,
   domain: string,
+  policy: ReturnType<typeof providerPolicy>,
 ): CrmDataRequest {
   return {
     capability: 'EMAIL_FIND',
@@ -99,6 +138,7 @@ function emailDiscovery(
       last_name: lastName,
       domain,
     },
+    ...policy,
   };
 }
 
@@ -116,6 +156,7 @@ export function planNovaProspectsSignal(signal: NovaProspectsSignal): NovaProspe
     };
   }
 
+  const executionPolicy = providerPolicy(signal.policy);
   const email = normalized(signal.subject.email);
   const firstName = normalized(signal.subject.firstName);
   const lastName = normalized(signal.subject.lastName);
@@ -124,38 +165,50 @@ export function planNovaProspectsSignal(signal: NovaProspectsSignal): NovaProspe
 
   switch (signal.kind) {
     case 'COMPANY_REFRESH':
-      if (companyDomain) requests.push(companyEnrichment(companyDomain));
+      if (companyDomain) requests.push(companyEnrichment(companyDomain, executionPolicy));
       break;
 
     case 'EMAIL_VERIFICATION_REQUIRED':
-      if (email) requests.push(emailVerification(email));
+      if (email) requests.push(emailVerification(email, executionPolicy));
       break;
 
     case 'CONTACT_REFRESH':
       if (email) {
-        requests.push(personEnrichment(email), emailVerification(email));
+        requests.push(
+          personEnrichment(email, executionPolicy),
+          emailVerification(email, executionPolicy),
+        );
       } else if (
         signal.policy.allowEmailDiscovery
         && firstName
         && lastName
         && companyDomain
       ) {
-        requests.push(emailDiscovery(firstName, lastName, companyDomain));
+        requests.push(
+          emailDiscovery(firstName, lastName, companyDomain, executionPolicy),
+        );
       }
       break;
 
     case 'PROSPECT_DISCOVERED':
-      if (companyDomain) requests.push(companyEnrichment(companyDomain));
+      if (companyDomain) {
+        requests.push(companyEnrichment(companyDomain, executionPolicy));
+      }
 
       if (email) {
-        requests.push(personEnrichment(email), emailVerification(email));
+        requests.push(
+          personEnrichment(email, executionPolicy),
+          emailVerification(email, executionPolicy),
+        );
       } else if (
         signal.policy.allowEmailDiscovery
         && firstName
         && lastName
         && companyDomain
       ) {
-        requests.push(emailDiscovery(firstName, lastName, companyDomain));
+        requests.push(
+          emailDiscovery(firstName, lastName, companyDomain, executionPolicy),
+        );
       }
       break;
   }
