@@ -13,31 +13,76 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  preflight:
+  live-proof:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout SuperBrain agent
+        uses: actions/checkout@v4
+
+      - name: Checkout NEXUS-1000 core
+        if: ${{ vars.SUPERBRAIN_NEXUS_REPOSITORY != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.SUPERBRAIN_NEXUS_REPOSITORY }}
+          ref: ${{ vars.SUPERBRAIN_NEXUS_REF }}
+          path: .sb034-nexus
+          token: ${{ secrets.SUPERBRAIN_NEXUS_REPO_TOKEN || github.token }}
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
       - run: npm ci
       - run: npm run build
       - run: npm run lint
       - run: npm test
       - run: python -m py_compile python/nexus_bridge_runner.py
-      - name: SB-034 readiness gate
+
+      - name: Select NEXUS root
+        shell: bash
+        env:
+          NEXUS_REPOSITORY: ${{ vars.SUPERBRAIN_NEXUS_REPOSITORY }}
+          FALLBACK_NEXUS_ROOT: ${{ vars.SUPERBRAIN_NEXUS_ROOT }}
+        run: |
+          set -euo pipefail
+          if [ -n "$NEXUS_REPOSITORY" ]; then
+            echo "SUPERBRAIN_NEXUS_ROOT=$GITHUB_WORKSPACE/.sb034-nexus" >> "$GITHUB_ENV"
+          elif [ -n "$FALLBACK_NEXUS_ROOT" ]; then
+            echo "SUPERBRAIN_NEXUS_ROOT=$FALLBACK_NEXUS_ROOT" >> "$GITHUB_ENV"
+          fi
+
+      - name: Execute SB-034 live-provider proof
         env:
           SUPERBRAIN_PROOF_SHA: ${{ github.sha }}
-          SUPERBRAIN_NEXUS_ROOT: ${{ vars.SUPERBRAIN_NEXUS_ROOT }}
+          SUPERBRAIN_SB034_QUESTION: ${{ vars.SUPERBRAIN_SB034_QUESTION }}
           SUPERBRAIN_RESEARCH_PRIMARY_ENDPOINT: ${{ vars.SUPERBRAIN_RESEARCH_PRIMARY_ENDPOINT }}
           SUPERBRAIN_RESEARCH_DISSENT_ENDPOINT: ${{ vars.SUPERBRAIN_RESEARCH_DISSENT_ENDPOINT }}
           SUPERBRAIN_RESEARCH_PRIMARY_NAME: ${{ vars.SUPERBRAIN_RESEARCH_PRIMARY_NAME }}
           SUPERBRAIN_RESEARCH_DISSENT_NAME: ${{ vars.SUPERBRAIN_RESEARCH_DISSENT_NAME }}
+          SUPERBRAIN_RESEARCH_ALLOWED_HOSTS: ${{ vars.SUPERBRAIN_RESEARCH_ALLOWED_HOSTS }}
+          SUPERBRAIN_RESEARCH_MIN_PRIMARY_SOURCES: ${{ vars.SUPERBRAIN_RESEARCH_MIN_PRIMARY_SOURCES }}
+          SUPERBRAIN_RESEARCH_MIN_PRIMARY_FAMILIES: ${{ vars.SUPERBRAIN_RESEARCH_MIN_PRIMARY_FAMILIES }}
+          SUPERBRAIN_RESEARCH_MIN_DISSENT_SOURCES: ${{ vars.SUPERBRAIN_RESEARCH_MIN_DISSENT_SOURCES }}
+          SUPERBRAIN_RESEARCH_REQUIRE_DISTINCT_DISSENT_FAMILY: ${{ vars.SUPERBRAIN_RESEARCH_REQUIRE_DISTINCT_DISSENT_FAMILY }}
           SUPERBRAIN_RESEARCH_PRIMARY_TOKEN: ${{ secrets.SUPERBRAIN_RESEARCH_PRIMARY_TOKEN }}
           SUPERBRAIN_RESEARCH_DISSENT_TOKEN: ${{ secrets.SUPERBRAIN_RESEARCH_DISSENT_TOKEN }}
-        run: npm run sb034:preflight
+          SUPERBRAIN_EVIDENCE_PROVIDER_COMMAND: ${{ vars.SUPERBRAIN_EVIDENCE_PROVIDER_COMMAND }}
+          SUPERBRAIN_EVIDENCE_PROVIDER_ARGS: ${{ vars.SUPERBRAIN_EVIDENCE_PROVIDER_ARGS }}
+          SUPERBRAIN_EVIDENCE_PROVIDER_NAME: ${{ vars.SUPERBRAIN_EVIDENCE_PROVIDER_NAME }}
+          SUPERBRAIN_EVIDENCE_PROVIDER_TIMEOUT_MS: ${{ vars.SUPERBRAIN_EVIDENCE_PROVIDER_TIMEOUT_MS }}
+        run: npm run sb034:live
+
+      - name: Upload SB-034 proof artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sb034-live-proof-${{ github.sha }}
+          path: artifacts/sb034-live-proof.json
+          if-no-files-found: error
+          retention-days: 30
