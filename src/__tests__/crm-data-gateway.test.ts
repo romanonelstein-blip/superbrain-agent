@@ -163,6 +163,29 @@ class CountingProvider implements CrmDataProvider {
 }
 
 describe('CrmDataGateway provider execution policy', (): void => {
+  test('sanitizes failed availability checks and keeps the budget for a usable fallback', async (): Promise<void> => {
+    const unavailable = new CountingProvider(
+      'unavailable', { quality: 100, costEfficiency: 100, speed: 100 }, result('unavailable', 'FOUND'),
+    );
+    unavailable.getStatus = async (): Promise<CrmProviderStatus> => {
+      throw new Error('private provider credentials and account data');
+    };
+    const fallback = new CountingProvider(
+      'fallback', { quality: 90, costEfficiency: 90, speed: 90 }, result('fallback', 'FOUND'),
+    );
+    const response = await new CrmDataGateway([unavailable, fallback]).resolve({
+      capability: 'EMAIL_VERIFY', input: {}, maxProviderAttempts: 1,
+    });
+    expect(response.attempts).toEqual([
+      { providerId: 'unavailable', state: 'UNAVAILABLE' },
+      { providerId: 'fallback', state: 'FOUND' },
+    ]);
+    expect(response.result?.providerId).toBe('fallback');
+    expect(unavailable.executions).toBe(0);
+    expect(fallback.executions).toBe(1);
+    expect(JSON.stringify(response)).not.toContain('private');
+  });
+
   test('executes only providers explicitly allowed by policy', async (): Promise<void> => {
     const blocked = new CountingProvider(
       'blocked',

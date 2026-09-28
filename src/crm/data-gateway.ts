@@ -159,7 +159,7 @@ export class CrmDataGateway {
     let providerExecutions = 0;
 
     for (const provider of candidates) {
-      const status = await provider.getStatus();
+      const status = await this.providerStatus(provider);
       if (!status.available) {
         const attempt: CrmGatewayAttempt = {
           providerId: provider.id,
@@ -236,40 +236,52 @@ export class CrmDataGateway {
     );
   }
 
+  private async providerStatus(provider: CrmDataProvider): Promise<CrmProviderStatus> {
+    try {
+      return await provider.getStatus();
+    } catch {
+      // A failed preflight must neither expose upstream exception text nor
+      // consume a paid execution. A different allowed provider may still work.
+      return { available: false };
+    }
+  }
+
   private async auditAttempt(
     capability: CrmDataCapability,
     attempt: CrmGatewayAttempt,
   ): Promise<void> {
-    await this.writeAudit({
+    await this.writeAudit(() => ({
       type: 'PROVIDER_ATTEMPT',
       occurredAt: this.now().toISOString(),
       capability,
       providerId: attempt.providerId,
       state: attempt.state,
-    });
+    }));
   }
 
   private async auditStopped(
     capability: CrmDataCapability,
     reason: CrmDataGatewayStopReason,
   ): Promise<void> {
-    await this.writeAudit({
+    await this.writeAudit(() => ({
       type: 'GATEWAY_STOPPED',
       occurredAt: this.now().toISOString(),
       capability,
       reason,
-    });
+    }));
   }
 
   private now(): Date {
     return this.audit.now?.() ?? new Date();
   }
 
-  private async writeAudit(event: CrmGatewayAuditEvent): Promise<void> {
+  private async writeAudit(createEvent: () => CrmGatewayAuditEvent): Promise<void> {
     if (!this.audit.sink) return;
 
     try {
-      await this.audit.sink.write(event);
+      // Event construction (including the injectable clock) belongs inside
+      // the same best-effort boundary as delivery to the sink.
+      await this.audit.sink.write(createEvent());
     } catch {
       // Audit is intentionally best-effort for read-only enrichment. A broken
       // telemetry sink must not cause duplicate paid provider calls on retry.

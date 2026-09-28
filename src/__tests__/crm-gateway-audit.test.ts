@@ -49,6 +49,50 @@ class CollectingAuditSink implements CrmGatewayAuditSink {
 }
 
 describe('CrmDataGateway audit events', (): void => {
+  test.each(['throws', 'invalid'] as const)(
+    'does not discard a paid result when the audit clock %s',
+    async (failure): Promise<void> => {
+      let executions = 0;
+      const provider = new AuditTestProvider();
+      const originalExecute = provider.execute.bind(provider);
+      provider.execute = async (request): Promise<CrmDataResult> => {
+        executions += 1;
+        return originalExecute(request);
+      };
+      const gateway = new CrmDataGateway([provider], undefined, {
+        sink: new CollectingAuditSink(),
+        now: (): Date => {
+          if (failure === 'throws') throw new Error('internal clock failure');
+          return new Date(NaN);
+        },
+      });
+
+      await expect(gateway.resolve({ capability: 'EMAIL_VERIFY', input: {} }))
+        .resolves.toMatchObject({
+          result: { outcome: 'FOUND' },
+          attempts: [{ providerId: 'audit-provider', state: 'FOUND' }],
+        });
+      expect(executions).toBe(1);
+    },
+  );
+
+  test('preserves policy denial even when audit event creation fails', async (): Promise<void> => {
+    const gateway = new CrmDataGateway([new AuditTestProvider()], undefined, {
+      sink: new CollectingAuditSink(),
+      now: (): Date => { throw new Error('internal clock failure'); },
+    });
+    await expect(gateway.resolve({ capability: 'EMAIL_VERIFY', input: {}, allowedProviders: [] }))
+      .resolves.toEqual({ result: null, attempts: [], stoppedReason: 'NO_ALLOWED_PROVIDER' });
+  });
+
+  test('does not evaluate an unused audit clock', async (): Promise<void> => {
+    const gateway = new CrmDataGateway([new AuditTestProvider()], undefined, {
+      now: (): Date => { throw new Error('unused clock'); },
+    });
+    await expect(gateway.resolve({ capability: 'EMAIL_VERIFY', input: {} }))
+      .resolves.toMatchObject({ result: { outcome: 'FOUND' } });
+  });
+
   test('records provider outcomes without request PII', async (): Promise<void> => {
     const sink = new CollectingAuditSink();
     const gateway = new CrmDataGateway(
