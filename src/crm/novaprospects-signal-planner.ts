@@ -22,6 +22,7 @@ export interface NovaProspectsSignalPolicy {
   allowEmailDiscovery: boolean;
   allowedProviders?: readonly string[];
   preferredProviders?: readonly string[];
+  /** Total provider executions across all capabilities in this signal. */
   maxProviderAttempts?: number;
 }
 
@@ -40,6 +41,8 @@ export interface NovaProspectsSignalPlan {
   tenantId: string;
   prospectId: string;
   requests: readonly CrmDataRequest[];
+  /** Shared execution budget; omitted for legacy, unlimited plans. */
+  maxProviderAttempts?: number;
 }
 
 export interface NovaProspectsExecutionItem {
@@ -218,6 +221,9 @@ export function planNovaProspectsSignal(signal: NovaProspectsSignal): NovaProspe
     tenantId: signal.tenantId,
     prospectId: signal.prospectId,
     requests,
+    ...(executionPolicy.maxProviderAttempts !== undefined
+      ? { maxProviderAttempts: executionPolicy.maxProviderAttempts }
+      : {}),
   };
 }
 
@@ -225,10 +231,40 @@ export class NovaProspectsSignalExecutor {
   constructor(private readonly gateway: CrmDataResolver | CrmDataGateway) {}
 
   async execute(plan: NovaProspectsSignalPlan): Promise<NovaProspectsExecutionResult> {
+    if (
+      plan.maxProviderAttempts !== undefined
+      && (!Number.isSafeInteger(plan.maxProviderAttempts) || plan.maxProviderAttempts < 1)
+    ) {
+      throw new Error('maxProviderAttempts must be a positive safe integer');
+    }
+
     const items: NovaProspectsExecutionItem[] = [];
+    let remainingAttempts = plan.maxProviderAttempts;
 
     for (const request of plan.requests) {
-      const response = await this.gateway.resolve(request);
+      if (remainingAttempts === 0) {
+        items.push({
+          capability: request.capability,
+          response: { result: null, attempts: [], stoppedReason: 'MAX_PROVIDER_ATTEMPTS' },
+        });
+        continue;
+      }
+
+      const response = await this.gateway.resolve(remainingAttempts === undefined
+        ? request
+        : {
+          ...request,
+          maxProviderAttempts: Math.min(
+            request.maxProviderAttempts ?? remainingAttempts,
+            remainingAttempts,
+          ),
+        });
+      if (remainingAttempts !== undefined) {
+        // Unavailable providers were never executed. Errors and misses can still
+        // incur charges, so they consume the same budget as successful calls.
+        remainingAttempts = Math.max(0, remainingAttempts
+          - response.attempts.filter((attempt) => attempt.state !== 'UNAVAILABLE').length);
+      }
       items.push({
         capability: request.capability,
         response,
