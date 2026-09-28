@@ -1,7 +1,10 @@
 import type {
   CrmDataGatewayResponse,
+  CrmDataResult,
+  CrmProviderStatus,
   CrmDataRequest,
 } from '../crm/data-gateway';
+import { CrmDataGateway, type CrmDataProvider } from '../crm/data-gateway';
 import {
   NovaProspectsSignalExecutor,
   planNovaProspectsSignal,
@@ -150,6 +153,96 @@ describe('planNovaProspectsSignal', (): void => {
 });
 
 describe('NovaProspectsSignalExecutor', (): void => {
+  test.each(['ERROR', 'NOT_FOUND'] as const)(
+    'counts %s fallbacks but not unavailable providers against the shared budget',
+    async (outcome): Promise<void> => {
+      const executed: string[] = [];
+      function provider(id: string, available: boolean): CrmDataProvider {
+        return {
+          id, capabilities: ['COMPANY_ENRICHMENT', 'PERSON_ENRICHMENT', 'EMAIL_VERIFY'],
+          profile: { quality: 100, costEfficiency: 100, speed: 100 },
+          async getStatus(): Promise<CrmProviderStatus> { return { available }; },
+          async execute(request): Promise<CrmDataResult> {
+            executed.push(`${id}:${request.capability}`);
+            if (id === 'first' && outcome === 'ERROR') throw new Error('upstream error');
+            return {
+              providerId: id, capability: request.capability,
+              outcome: id === 'first' ? 'NOT_FOUND' : 'FOUND',
+              confidence: 1, data: {}, evidence: [],
+            };
+          },
+        };
+      }
+      const plan = planNovaProspectsSignal(signal({
+        policy: {
+          allowExternalEnrichment: true, allowEmailDiscovery: true, maxProviderAttempts: 3,
+        },
+      }));
+      const original = JSON.stringify(plan);
+      const gateway = new CrmDataGateway([
+        provider('offline', false), provider('first', true), provider('fallback', true),
+      ]);
+      const result = await new NovaProspectsSignalExecutor(gateway).execute(plan);
+
+      expect(executed).toEqual([
+        'first:COMPANY_ENRICHMENT', 'fallback:COMPANY_ENRICHMENT', 'first:PERSON_ENRICHMENT',
+      ]);
+      expect(result.items[1].response.stoppedReason).toBe('MAX_PROVIDER_ATTEMPTS');
+      expect(result.items[2].response.attempts).toEqual([]);
+      expect(result.items[2].response.stoppedReason).toBe('MAX_PROVIDER_ATTEMPTS');
+      expect(JSON.stringify(plan)).toBe(original);
+    },
+  );
+
+  test.each([0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])(
+    'rejects invalid plan budget %s before contacting the resolver',
+    async (maxProviderAttempts): Promise<void> => {
+      const resolver = new RecordingResolver();
+      const plan = { ...planNovaProspectsSignal(signal()), maxProviderAttempts };
+      await expect(new NovaProspectsSignalExecutor(resolver).execute(plan))
+        .rejects.toThrow('maxProviderAttempts must be a positive safe integer');
+      expect(resolver.requests).toEqual([]);
+    },
+  );
+
+  test('preserves legacy plans without a shared budget', async (): Promise<void> => {
+    const resolver = new RecordingResolver();
+    const plan = planNovaProspectsSignal(signal());
+    await new NovaProspectsSignalExecutor(resolver).execute(plan);
+    expect(resolver.requests).toEqual(plan.requests);
+    expect(resolver.requests).toHaveLength(3);
+  });
+
+  test('shares the attempt limit across every capability of a signal', async (): Promise<void> => {
+    const executed: string[] = [];
+    const provider: CrmDataProvider = {
+      id: 'test-provider',
+      capabilities: ['COMPANY_ENRICHMENT', 'PERSON_ENRICHMENT', 'EMAIL_VERIFY'],
+      profile: { quality: 100, costEfficiency: 100, speed: 100 },
+      async getStatus(): Promise<CrmProviderStatus> { return { available: true }; },
+      async execute(request): Promise<CrmDataResult> {
+        executed.push(request.capability);
+        return {
+          providerId: 'test-provider', capability: request.capability,
+          outcome: 'FOUND', confidence: 1, data: {}, evidence: [],
+        };
+      },
+    };
+    const plan = planNovaProspectsSignal(signal({
+      policy: {
+        allowExternalEnrichment: true, allowEmailDiscovery: true, maxProviderAttempts: 1,
+      },
+    }));
+    const result = await new NovaProspectsSignalExecutor(new CrmDataGateway([provider])).execute(plan);
+
+    expect(executed).toEqual(['COMPANY_ENRICHMENT']);
+    expect(result.items).toHaveLength(3);
+    expect(result.items.slice(1).map((item) => item.response)).toEqual([
+      { result: null, attempts: [], stoppedReason: 'MAX_PROVIDER_ATTEMPTS' },
+      { result: null, attempts: [], stoppedReason: 'MAX_PROVIDER_ATTEMPTS' },
+    ]);
+  });
+
   test('executes the deterministic plan through the vendor-neutral gateway contract', async (): Promise<void> => {
     const resolver = new RecordingResolver();
     const executor = new NovaProspectsSignalExecutor(resolver);
