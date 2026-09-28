@@ -157,3 +157,6 @@ export type {
 
 export { ClayDataProvider } from './crm/providers/clay-provider.js';
 export type { ClayDataProviderConfig } from './crm/providers/clay-provider.js';
+
+
+export type { CrmDataGatewayStopReason } from './crm/data-gateway.js';
