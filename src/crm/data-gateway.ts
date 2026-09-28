@@ -1,3 +1,8 @@
+import type {
+  CrmGatewayAuditEvent,
+  CrmGatewayAuditOptions,
+} from './gateway-audit.js';
+
 export type CrmDataCapability =
   | 'PERSON_SEARCH'
   | 'COMPANY_SEARCH'
@@ -113,15 +118,18 @@ function isAllowed(providerId: string, allowedProviders: readonly string[] | und
 export class CrmDataGateway {
   private readonly providers: readonly CrmDataProvider[];
   private readonly weights: CrmDataGatewayWeights;
+  private readonly audit: CrmGatewayAuditOptions;
 
   constructor(
     providers: readonly CrmDataProvider[],
     weights: CrmDataGatewayWeights = DEFAULT_WEIGHTS,
+    audit: CrmGatewayAuditOptions = {},
   ) {
     if (providers.length === 0) throw new Error('At least one CRM data provider is required');
     providers.forEach(validateProfile);
     this.providers = [...providers];
     this.weights = weights;
+    this.audit = audit;
   }
 
   async resolve(request: CrmDataRequest): Promise<CrmDataGatewayResponse> {
@@ -139,6 +147,7 @@ export class CrmDataGateway {
       .sort((left, right) => this.rank(right, request) - this.rank(left, request));
 
     if (candidates.length === 0) {
+      await this.auditStopped(request.capability, 'NO_ALLOWED_PROVIDER');
       return {
         result: null,
         attempts: [],
@@ -152,7 +161,12 @@ export class CrmDataGateway {
     for (const provider of candidates) {
       const status = await provider.getStatus();
       if (!status.available) {
-        attempts.push({ providerId: provider.id, state: 'UNAVAILABLE' });
+        const attempt: CrmGatewayAttempt = {
+          providerId: provider.id,
+          state: 'UNAVAILABLE',
+        };
+        attempts.push(attempt);
+        await this.auditAttempt(request.capability, attempt);
         continue;
       }
 
@@ -160,6 +174,7 @@ export class CrmDataGateway {
         request.maxProviderAttempts !== undefined
         && providerExecutions >= request.maxProviderAttempts
       ) {
+        await this.auditStopped(request.capability, 'MAX_PROVIDER_ATTEMPTS');
         return {
           result: null,
           attempts,
@@ -172,20 +187,40 @@ export class CrmDataGateway {
       try {
         const result = await provider.execute(request);
         if (result.providerId !== provider.id || result.capability !== request.capability) {
-          attempts.push({ providerId: provider.id, state: 'ERROR' });
+          const attempt: CrmGatewayAttempt = {
+            providerId: provider.id,
+            state: 'ERROR',
+          };
+          attempts.push(attempt);
+          await this.auditAttempt(request.capability, attempt);
           continue;
         }
 
         if (result.outcome === 'FOUND') {
-          attempts.push({ providerId: provider.id, state: 'FOUND' });
+          const attempt: CrmGatewayAttempt = {
+            providerId: provider.id,
+            state: 'FOUND',
+          };
+          attempts.push(attempt);
+          await this.auditAttempt(request.capability, attempt);
           return { result, attempts };
         }
 
-        attempts.push({ providerId: provider.id, state: 'NOT_FOUND' });
+        const attempt: CrmGatewayAttempt = {
+          providerId: provider.id,
+          state: 'NOT_FOUND',
+        };
+        attempts.push(attempt);
+        await this.auditAttempt(request.capability, attempt);
       } catch {
         // Deliberately avoid surfacing provider error text here because upstream
         // SDKs can include credential-bearing URLs or headers in exceptions.
-        attempts.push({ providerId: provider.id, state: 'ERROR' });
+        const attempt: CrmGatewayAttempt = {
+          providerId: provider.id,
+          state: 'ERROR',
+        };
+        attempts.push(attempt);
+        await this.auditAttempt(request.capability, attempt);
       }
     }
 
@@ -199,5 +234,45 @@ export class CrmDataGateway {
       + provider.profile.speed * this.weights.speed
       + preferenceBoost(provider.id, request.preferredProviders)
     );
+  }
+
+  private async auditAttempt(
+    capability: CrmDataCapability,
+    attempt: CrmGatewayAttempt,
+  ): Promise<void> {
+    await this.writeAudit({
+      type: 'PROVIDER_ATTEMPT',
+      occurredAt: this.now().toISOString(),
+      capability,
+      providerId: attempt.providerId,
+      state: attempt.state,
+    });
+  }
+
+  private async auditStopped(
+    capability: CrmDataCapability,
+    reason: CrmDataGatewayStopReason,
+  ): Promise<void> {
+    await this.writeAudit({
+      type: 'GATEWAY_STOPPED',
+      occurredAt: this.now().toISOString(),
+      capability,
+      reason,
+    });
+  }
+
+  private now(): Date {
+    return this.audit.now?.() ?? new Date();
+  }
+
+  private async writeAudit(event: CrmGatewayAuditEvent): Promise<void> {
+    if (!this.audit.sink) return;
+
+    try {
+      await this.audit.sink.write(event);
+    } catch {
+      // Audit is intentionally best-effort for read-only enrichment. A broken
+      // telemetry sink must not cause duplicate paid provider calls on retry.
+    }
   }
 }

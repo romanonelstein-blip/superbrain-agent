@@ -160,3 +160,12 @@ export type { ClayDataProviderConfig } from './crm/providers/clay-provider.js';
 
 
 export type { CrmDataGatewayStopReason } from './crm/data-gateway.js';
+
+
+export type {
+  CrmGatewayAttemptAuditEvent,
+  CrmGatewayAuditEvent,
+  CrmGatewayAuditOptions,
+  CrmGatewayAuditSink,
+  CrmGatewayStoppedAuditEvent,
+} from './crm/gateway-audit.js';
