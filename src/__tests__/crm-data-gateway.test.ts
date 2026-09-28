@@ -1,7 +1,6 @@
 import {
   CrmDataGateway,
   type CrmDataProvider,
-  type CrmDataRequest,
   type CrmDataResult,
   type CrmProviderStatus,
 } from '../crm/data-gateway';
@@ -28,7 +27,7 @@ class FakeProvider implements CrmDataProvider {
     return this.status;
   }
 
-  async execute(_request: CrmDataRequest): Promise<CrmDataResult> {
+  async execute(): Promise<CrmDataResult> {
     if (this.shouldThrow) throw new Error('credential-bearing upstream failure');
     return this.result;
   }
