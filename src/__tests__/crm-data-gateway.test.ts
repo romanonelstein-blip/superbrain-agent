@@ -139,3 +139,145 @@ describe('HunterDataProvider', (): void => {
     expect(transport.lastRequest?.query).not.toHaveProperty('api_key');
   });
 });
+
+
+class CountingProvider implements CrmDataProvider {
+  readonly capabilities = ['EMAIL_VERIFY'] as const;
+  executions = 0;
+
+  constructor(
+    readonly id: string,
+    readonly profile: { quality: number; costEfficiency: number; speed: number },
+    private readonly providerResult: CrmDataResult,
+    private readonly status: CrmProviderStatus = { available: true },
+  ) {}
+
+  async getStatus(): Promise<CrmProviderStatus> {
+    return this.status;
+  }
+
+  async execute(): Promise<CrmDataResult> {
+    this.executions += 1;
+    return this.providerResult;
+  }
+}
+
+describe('CrmDataGateway provider execution policy', (): void => {
+  test('executes only providers explicitly allowed by policy', async (): Promise<void> => {
+    const blocked = new CountingProvider(
+      'blocked',
+      { quality: 100, costEfficiency: 100, speed: 100 },
+      result('blocked', 'FOUND'),
+    );
+    const allowed = new CountingProvider(
+      'allowed',
+      { quality: 50, costEfficiency: 50, speed: 50 },
+      result('allowed', 'FOUND'),
+    );
+    const gateway = new CrmDataGateway([blocked, allowed]);
+
+    const response = await gateway.resolve({
+      capability: 'EMAIL_VERIFY',
+      input: { email: 'test@example.com' },
+      allowedProviders: ['allowed'],
+    });
+
+    expect(response.result?.providerId).toBe('allowed');
+    expect(blocked.executions).toBe(0);
+    expect(allowed.executions).toBe(1);
+  });
+
+  test('fails closed when the allowlist permits no provider', async (): Promise<void> => {
+    const provider = new CountingProvider(
+      'provider',
+      { quality: 80, costEfficiency: 80, speed: 80 },
+      result('provider', 'FOUND'),
+    );
+    const gateway = new CrmDataGateway([provider]);
+
+    const response = await gateway.resolve({
+      capability: 'EMAIL_VERIFY',
+      input: { email: 'test@example.com' },
+      allowedProviders: [],
+    });
+
+    expect(response).toEqual({
+      result: null,
+      attempts: [],
+      stoppedReason: 'NO_ALLOWED_PROVIDER',
+    });
+    expect(provider.executions).toBe(0);
+  });
+
+  test('caps paid provider executions before fallback can continue', async (): Promise<void> => {
+    const first = new CountingProvider(
+      'first',
+      { quality: 100, costEfficiency: 100, speed: 100 },
+      result('first', 'NOT_FOUND'),
+    );
+    const fallback = new CountingProvider(
+      'fallback',
+      { quality: 90, costEfficiency: 90, speed: 90 },
+      result('fallback', 'FOUND'),
+    );
+    const gateway = new CrmDataGateway([first, fallback]);
+
+    const response = await gateway.resolve({
+      capability: 'EMAIL_VERIFY',
+      input: { email: 'test@example.com' },
+      maxProviderAttempts: 1,
+    });
+
+    expect(response.result).toBeNull();
+    expect(response.stoppedReason).toBe('MAX_PROVIDER_ATTEMPTS');
+    expect(response.attempts).toEqual([
+      { providerId: 'first', state: 'NOT_FOUND' },
+    ]);
+    expect(first.executions).toBe(1);
+    expect(fallback.executions).toBe(0);
+  });
+
+  test('an unavailable provider does not consume the execution budget', async (): Promise<void> => {
+    const unavailable = new CountingProvider(
+      'unavailable',
+      { quality: 100, costEfficiency: 100, speed: 100 },
+      result('unavailable', 'FOUND'),
+      { available: false, reason: 'disabled' },
+    );
+    const fallback = new CountingProvider(
+      'fallback',
+      { quality: 90, costEfficiency: 90, speed: 90 },
+      result('fallback', 'FOUND'),
+    );
+    const gateway = new CrmDataGateway([unavailable, fallback]);
+
+    const response = await gateway.resolve({
+      capability: 'EMAIL_VERIFY',
+      input: { email: 'test@example.com' },
+      maxProviderAttempts: 1,
+    });
+
+    expect(response.result?.providerId).toBe('fallback');
+    expect(response.attempts).toEqual([
+      { providerId: 'unavailable', state: 'UNAVAILABLE' },
+      { providerId: 'fallback', state: 'FOUND' },
+    ]);
+    expect(unavailable.executions).toBe(0);
+    expect(fallback.executions).toBe(1);
+  });
+
+  test('rejects an invalid provider attempt budget', async (): Promise<void> => {
+    const provider = new CountingProvider(
+      'provider',
+      { quality: 80, costEfficiency: 80, speed: 80 },
+      result('provider', 'FOUND'),
+    );
+    const gateway = new CrmDataGateway([provider]);
+
+    await expect(gateway.resolve({
+      capability: 'EMAIL_VERIFY',
+      input: { email: 'test@example.com' },
+      maxProviderAttempts: 0,
+    })).rejects.toThrow('maxProviderAttempts must be a positive integer');
+  });
+});

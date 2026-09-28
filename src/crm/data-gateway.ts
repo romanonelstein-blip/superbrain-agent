@@ -13,6 +13,8 @@ export interface CrmDataRequest {
   capability: CrmDataCapability;
   input: CrmDataInput;
   preferredProviders?: readonly string[];
+  allowedProviders?: readonly string[];
+  maxProviderAttempts?: number;
 }
 
 export interface CrmProviderProfile {
@@ -55,9 +57,14 @@ export interface CrmGatewayAttempt {
   state: 'UNAVAILABLE' | 'ERROR' | 'NOT_FOUND' | 'FOUND';
 }
 
+export type CrmDataGatewayStopReason =
+  | 'NO_ALLOWED_PROVIDER'
+  | 'MAX_PROVIDER_ATTEMPTS';
+
 export interface CrmDataGatewayResponse {
   result: CrmDataResult | null;
   attempts: readonly CrmGatewayAttempt[];
+  stoppedReason?: CrmDataGatewayStopReason;
 }
 
 export interface CrmDataGatewayWeights {
@@ -84,10 +91,23 @@ function validateProfile(provider: CrmDataProvider): void {
   assertScore(`${provider.id}.speed`, provider.profile.speed);
 }
 
+function validateRequestPolicy(request: CrmDataRequest): void {
+  if (
+    request.maxProviderAttempts !== undefined
+    && (!Number.isInteger(request.maxProviderAttempts) || request.maxProviderAttempts < 1)
+  ) {
+    throw new Error('maxProviderAttempts must be a positive integer');
+  }
+}
+
 function preferenceBoost(providerId: string, preferredProviders: readonly string[] | undefined): number {
   if (!preferredProviders) return 0;
   const index = preferredProviders.indexOf(providerId);
   return index === -1 ? 0 : (preferredProviders.length - index) * 1_000;
+}
+
+function isAllowed(providerId: string, allowedProviders: readonly string[] | undefined): boolean {
+  return allowedProviders === undefined || allowedProviders.includes(providerId);
 }
 
 export class CrmDataGateway {
@@ -105,15 +125,29 @@ export class CrmDataGateway {
   }
 
   async resolve(request: CrmDataRequest): Promise<CrmDataGatewayResponse> {
-    const candidates = this.providers
-      .filter((provider) => provider.capabilities.includes(request.capability))
-      .sort((left, right) => this.rank(right, request) - this.rank(left, request));
+    validateRequestPolicy(request);
 
-    if (candidates.length === 0) {
+    const capabilityCandidates = this.providers
+      .filter((provider) => provider.capabilities.includes(request.capability));
+
+    if (capabilityCandidates.length === 0) {
       throw new Error(`No CRM data provider supports ${request.capability}`);
     }
 
+    const candidates = capabilityCandidates
+      .filter((provider) => isAllowed(provider.id, request.allowedProviders))
+      .sort((left, right) => this.rank(right, request) - this.rank(left, request));
+
+    if (candidates.length === 0) {
+      return {
+        result: null,
+        attempts: [],
+        stoppedReason: 'NO_ALLOWED_PROVIDER',
+      };
+    }
+
     const attempts: CrmGatewayAttempt[] = [];
+    let providerExecutions = 0;
 
     for (const provider of candidates) {
       const status = await provider.getStatus();
@@ -121,6 +155,19 @@ export class CrmDataGateway {
         attempts.push({ providerId: provider.id, state: 'UNAVAILABLE' });
         continue;
       }
+
+      if (
+        request.maxProviderAttempts !== undefined
+        && providerExecutions >= request.maxProviderAttempts
+      ) {
+        return {
+          result: null,
+          attempts,
+          stoppedReason: 'MAX_PROVIDER_ATTEMPTS',
+        };
+      }
+
+      providerExecutions += 1;
 
       try {
         const result = await provider.execute(request);
