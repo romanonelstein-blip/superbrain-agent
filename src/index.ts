@@ -169,3 +169,6 @@ export type {
   CrmGatewayAuditSink,
   CrmGatewayStoppedAuditEvent,
 } from './crm/gateway-audit.js';
+
+export { FileSignalExecutionStore } from './crm/signal-execution-store.js';
+export type { NovaProspectsExecutionStore } from './crm/signal-execution-store.js';
