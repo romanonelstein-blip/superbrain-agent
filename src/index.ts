@@ -137,3 +137,19 @@ export type { ApolloDataProviderConfig } from './crm/providers/apollo-provider.j
 
 export { HunterDataProvider } from './crm/providers/hunter-provider.js';
 export type { HunterDataProviderConfig } from './crm/providers/hunter-provider.js';
+
+
+export {
+  NovaProspectsSignalExecutor,
+  planNovaProspectsSignal,
+} from './crm/novaprospects-signal-planner.js';
+export type {
+  CrmDataResolver,
+  NovaProspectsExecutionItem,
+  NovaProspectsExecutionResult,
+  NovaProspectsSignal,
+  NovaProspectsSignalKind,
+  NovaProspectsSignalPlan,
+  NovaProspectsSignalPolicy,
+  NovaProspectsSignalSubject,
+} from './crm/novaprospects-signal-planner.js';
