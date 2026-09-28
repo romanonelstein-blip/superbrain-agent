@@ -29,8 +29,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout SuperBrain agent
+      - name: Checkout exact SuperBrain proof SHA
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Checkout external NEXUS-1000 core
         if: ${{ vars.SUPERBRAIN_NEXUS_REPOSITORY != '' }}
