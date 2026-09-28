@@ -1,0 +1,43 @@
+name: SB-034 Auto Live Proof
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sb034-auto-live-proof
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm run build
+      - run: npm run lint
+      - run: npm test
+      - run: python -m py_compile python/nexus_bridge_runner.py
+      - name: SB-034 readiness gate
+        env:
+          SUPERBRAIN_PROOF_SHA: ${{ github.sha }}
+          SUPERBRAIN_NEXUS_ROOT: ${{ vars.SUPERBRAIN_NEXUS_ROOT }}
+          SUPERBRAIN_RESEARCH_PRIMARY_ENDPOINT: ${{ vars.SUPERBRAIN_RESEARCH_PRIMARY_ENDPOINT }}
+          SUPERBRAIN_RESEARCH_DISSENT_ENDPOINT: ${{ vars.SUPERBRAIN_RESEARCH_DISSENT_ENDPOINT }}
+          SUPERBRAIN_RESEARCH_PRIMARY_NAME: ${{ vars.SUPERBRAIN_RESEARCH_PRIMARY_NAME }}
+          SUPERBRAIN_RESEARCH_DISSENT_NAME: ${{ vars.SUPERBRAIN_RESEARCH_DISSENT_NAME }}
+          SUPERBRAIN_RESEARCH_PRIMARY_TOKEN: ${{ secrets.SUPERBRAIN_RESEARCH_PRIMARY_TOKEN }}
+          SUPERBRAIN_RESEARCH_DISSENT_TOKEN: ${{ secrets.SUPERBRAIN_RESEARCH_DISSENT_TOKEN }}
+        run: npm run sb034:preflight
