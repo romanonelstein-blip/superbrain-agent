@@ -1,6 +1,15 @@
 name: SB-034 Auto Live Proof
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'python/**'
+      - 'scripts/sb034-live-proof.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/sb034-auto-live-proof.yml'
   workflow_dispatch:
   schedule:
     - cron: '17 */6 * * *'
@@ -9,8 +18,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: sb034-auto-live-proof
-  cancel-in-progress: false
+  group: sb034-auto-live-proof-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   live-proof:
@@ -59,7 +68,7 @@ jobs:
 
       - name: Execute SB-034 live-provider proof
         env:
-          SUPERBRAIN_PROOF_SHA: ${{ github.sha }}
+          SUPERBRAIN_PROOF_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           SUPERBRAIN_SB034_QUESTION: ${{ vars.SUPERBRAIN_SB034_QUESTION }}
           SUPERBRAIN_RESEARCH_PRIMARY_ENDPOINT: ${{ vars.SUPERBRAIN_RESEARCH_PRIMARY_ENDPOINT }}
           SUPERBRAIN_RESEARCH_DISSENT_ENDPOINT: ${{ vars.SUPERBRAIN_RESEARCH_DISSENT_ENDPOINT }}
@@ -82,7 +91,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: sb034-live-proof-${{ github.sha }}
+          name: sb034-live-proof-${{ github.event.pull_request.head.sha || github.sha }}
           path: artifacts/sb034-live-proof.json
           if-no-files-found: error
           retention-days: 30
