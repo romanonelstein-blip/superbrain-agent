@@ -106,3 +106,34 @@ export type {
   RealitySignal,
   RealitySignalDirection,
 } from './core/reality-sentinel.js';
+
+export { CrmDataGateway } from './crm/data-gateway.js';
+export type {
+  CrmDataCapability,
+  CrmDataGatewayResponse,
+  CrmDataGatewayWeights,
+  CrmDataInput,
+  CrmDataInputValue,
+  CrmDataProvider,
+  CrmDataRequest,
+  CrmDataResult,
+  CrmEvidenceReference,
+  CrmGatewayAttempt,
+  CrmProviderProfile,
+  CrmProviderStatus,
+} from './crm/data-gateway.js';
+
+export { FetchJsonHttpTransport } from './crm/http-json-transport.js';
+export type {
+  JsonHttpMethod,
+  JsonHttpQueryValue,
+  JsonHttpRequest,
+  JsonHttpResponse,
+  JsonHttpTransport,
+} from './crm/http-json-transport.js';
+
+export { ApolloDataProvider } from './crm/providers/apollo-provider.js';
+export type { ApolloDataProviderConfig } from './crm/providers/apollo-provider.js';
+
+export { HunterDataProvider } from './crm/providers/hunter-provider.js';
+export type { HunterDataProviderConfig } from './crm/providers/hunter-provider.js';
