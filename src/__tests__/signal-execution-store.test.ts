@@ -48,6 +48,27 @@ describe('persistent signal execution guard', (): void => {
     expect(await new FileSignalExecutionStore(directory).claim('tenant', 'signal')).toBe('ALREADY_CLAIMED');
   });
 
+  test('canonicalizes surrounding identity whitespace to prevent replay aliases', async (): Promise<void> => {
+    const store = new FileSignalExecutionStore(directory);
+    expect(await store.claim('tenant', 'signal')).toBe('CLAIMED');
+    expect(await store.claim(' tenant ', ' signal ')).toBe('ALREADY_CLAIMED');
+    expect(await readdir(directory)).toHaveLength(1);
+  });
+
+  test('sanitizes direct filesystem failures without leaking private paths', async (): Promise<void> => {
+    const privatePath = join(directory, 'private-store-path');
+    await writeFile(privatePath, 'not a directory');
+    const store = new FileSignalExecutionStore(privatePath);
+    let message = '';
+    try {
+      await store.claim('tenant', 'signal');
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toBe('Signal execution store unavailable');
+    expect(message).not.toContain(privatePath);
+  });
+
   test('retains incomplete claims rather than risking a repeated provider call', async (): Promise<void> => {
     const store = new FileSignalExecutionStore(directory);
     await store.claim('tenant', 'signal');
