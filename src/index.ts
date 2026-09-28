@@ -153,3 +153,7 @@ export type {
   NovaProspectsSignalPolicy,
   NovaProspectsSignalSubject,
 } from './crm/novaprospects-signal-planner.js';
+
+
+export { ClayDataProvider } from './crm/providers/clay-provider.js';
+export type { ClayDataProviderConfig } from './crm/providers/clay-provider.js';
