@@ -22,6 +22,11 @@ is actually approved after all canonical gates. A raw `YES` with a failed
 gate becomes mobile `NO`. Gate outcomes are written into the mission
 audit trail.
 
+Master decisions recorded while a mission is running remain in its history
+and audit trail when execution completes or fails, including after a server
+restart. Recording a Master decision does not change the canonical NEXUS
+result or automatically execute the requested action.
+
 ## Start
 
 Build first:
