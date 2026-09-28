@@ -44,6 +44,9 @@ export class FetchJsonHttpTransport implements JsonHttpTransport {
     try {
       const response = await fetch(url, {
         method: input.method,
+        // Provider credentials use custom headers. Never follow an upstream
+        // redirect that could forward those headers or prospect data elsewhere.
+        redirect: 'error',
         headers: {
           accept: 'application/json',
           ...(input.body ? { 'content-type': 'application/json' } : {}),
