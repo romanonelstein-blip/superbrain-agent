@@ -68,17 +68,19 @@ class NexusOrchestrator:
 
         primary_source_ids = {item.source_id for item in primary}
         primary_hashes = {item.content_hash for item in primary if item.content_hash}
+        primary_boundaries = {item.trust_boundary for item in primary if item.trust_boundary}
         dissent = bool(
             dissent_items
             and all(item.stance == Stance.CHALLENGE for item in dissent_items)
             and all(item.provenance_complete for item in dissent_items)
             and all(item.source_id not in primary_source_ids for item in dissent_items)
             and all(not item.content_hash or item.content_hash not in primary_hashes for item in dissent_items)
+            and all(item.trust_boundary not in primary_boundaries for item in dissent_items)
         )
         reasons.append(
-            "Blinded dissent supplied independent provenance-backed challenge evidence."
+            "Blinded dissent supplied provenance-backed challenge evidence from an independent trust boundary."
             if dissent
-            else "Blinded dissent requires independent verified challenge evidence with no primary-source overlap."
+            else "Blinded dissent requires verified challenge evidence from a trust boundary independent of all primary evidence."
         )
 
         all_items = primary + dissent_items
