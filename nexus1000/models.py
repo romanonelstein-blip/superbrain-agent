@@ -17,6 +17,7 @@ class Evidence:
     stance: Stance
     source_id: str
     source_family: str
+    trust_boundary: str
     reliability: float = 0.5
     freshness: float = 1.0
     relevance: float = 1.0
@@ -42,4 +43,5 @@ class Evidence:
             and self.provider
             and self.source_id
             and self.source_family
+            and self.trust_boundary
         )
