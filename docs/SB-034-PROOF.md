@@ -1,13 +1,13 @@
 # SB-034 live-provider proof gate
 
-SB-034 is complete only when reproducible evidence is tied to one exact commit SHA.
+SB-034 is complete only when reproducible evidence is tied to one exact commit SHA and every build/test/proof step runs against that same SHA.
 
 ## Required proof
 
-- locked clean install succeeds
-- build, lint and full tests succeed
+- locked clean install succeeds on the exact proof SHA
+- build, lint and full tests succeed on the exact proof SHA
 - NEXUS core reports ready with `nexus1000/orchestrator.py` and `nexus1000/neis.py`
-- a live provider returns verified, provenance-backed evidence
+- a live provider returns verified, provenance-backed evidence from external HTTPS sources
 - one research run traverses `grand_council`, `neis`, `blinded_dissent`, and `verifier`
 - final output records every required gate as `PASS`
 - the approved live run finishes with NEXUS final value `YES`
@@ -16,32 +16,20 @@ SB-034 is complete only when reproducible evidence is tied to one exact commit S
 
 Mocks, static grep checks, configuration readiness, or CI from another SHA do not satisfy the live-provider requirement.
 
-## CI configuration
+## Default CI runtime
 
-The `SB-034 Auto Live Proof` workflow supports either HTTP research providers or a command evidence provider. Do not configure both modes at the same time.
+The proof branch is self-contained by default:
 
-Required for every live proof:
+- `nexus1000/` contains the fail-closed NEXUS-1000 reference runtime used by the bridge;
+- `scripts/sb034-github-live-provider.mjs` performs real HTTPS retrieval from GitHub for the exact tested SHA;
+- the live provider hashes retrieved bytes and records citation, source family, provider identity, and content hash;
+- pull-request checkout is pinned to the PR head SHA instead of GitHub's temporary merge ref;
+- the default proof question and provider require no repository secrets.
 
-- `SUPERBRAIN_SB034_QUESTION` repository variable: the research question used for the proof
-- a usable NEXUS-1000 core, preferably through `SUPERBRAIN_NEXUS_REPOSITORY`; the workflow checks it out into the runner and uses that exact copy
-
-For a separate/private NEXUS repository, configure:
-
-- `SUPERBRAIN_NEXUS_REPOSITORY` repository variable, for example `owner/nexus-core`
-- optionally `SUPERBRAIN_NEXUS_REF` to pin a branch, tag, or commit
-- `SUPERBRAIN_NEXUS_REPO_TOKEN` secret only when the default workflow token cannot read that repository
-
-For HTTP research mode, configure:
-
-- `SUPERBRAIN_RESEARCH_PRIMARY_ENDPOINT`
-- `SUPERBRAIN_RESEARCH_DISSENT_ENDPOINT`
-- optional provider names, source-host allowlist and diversity thresholds
-- bearer tokens only as GitHub Actions secrets when the endpoints require them
-
-The live proof captures provider names, source IDs, citations and content hashes, but never writes bearer tokens into the proof artifact.
+Repository variables may override the default provider or point CI at a separate NEXUS core. External configuration must satisfy exactly the same proof contract and must not weaken fail-closed behavior.
 
 ## Result semantics
 
-`PASS` means the same run produced provenance-backed live evidence, passed all four canonical NEXUS gates, returned final `YES`, and the negative provider-unavailable case failed closed.
+`PASS` means the same exact-SHA run produced provenance-backed live evidence, passed all four canonical NEXUS gates, returned final `YES`, and the negative provider-unavailable case failed closed.
 
-Any missing runtime, provider, provenance field, required gate, or negative-case denial leaves SB-034 as `BLOCKED`.
+Any missing runtime, provider, provenance field, required gate, exact-SHA binding, or negative-case denial leaves SB-034 as `BLOCKED`.
