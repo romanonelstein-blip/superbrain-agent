@@ -171,3 +171,35 @@ describe('NovaProspectsSignalExecutor', (): void => {
     expect(result.items).toHaveLength(1);
   });
 });
+
+
+describe('NovaProspects provider policy propagation', (): void => {
+  test('propagates allowlist, preference and attempt budget to every planned request', (): void => {
+    const plan = planNovaProspectsSignal(signal({
+      policy: {
+        allowExternalEnrichment: true,
+        allowEmailDiscovery: true,
+        allowedProviders: ['apollo', 'hunter'],
+        preferredProviders: ['apollo'],
+        maxProviderAttempts: 1,
+      },
+    }));
+
+    expect(plan.requests.length).toBeGreaterThan(0);
+    for (const request of plan.requests) {
+      expect(request.allowedProviders).toEqual(['apollo', 'hunter']);
+      expect(request.preferredProviders).toEqual(['apollo']);
+      expect(request.maxProviderAttempts).toBe(1);
+    }
+  });
+
+  test('rejects an invalid provider attempt budget before execution', (): void => {
+    expect(() => planNovaProspectsSignal(signal({
+      policy: {
+        allowExternalEnrichment: true,
+        allowEmailDiscovery: true,
+        maxProviderAttempts: 0,
+      },
+    }))).toThrow('maxProviderAttempts must be a positive integer');
+  });
+});
