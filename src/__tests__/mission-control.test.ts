@@ -92,6 +92,65 @@ afterEach(async (): Promise<void> => {
 });
 
 describe('MissionControlServer', (): void => {
+  test.each(['completed', 'failed'] as const)(
+    'preserves in-flight Master decisions when a mission becomes %s, including after restart',
+    async (outcome): Promise<void> => {
+      let release!: () => void;
+      let reportStarted!: (input: MissionExecutionInput) => void;
+      const blocked = new Promise<void>((resolve): void => { release = resolve; });
+      const started = new Promise<MissionExecutionInput>((resolve): void => { reportStarted = resolve; });
+      const fixture = new TestExecutor();
+      const executor: MissionExecutor = {
+        getStatus: (): Promise<MissionExecutorStatus> => fixture.getStatus(),
+        execute: async (input): Promise<MissionExecutionResult> => {
+          reportStarted(input);
+          await blocked;
+          if (outcome === 'failed') throw new Error('Fixture failure');
+          return fixture.execute(input);
+        },
+      };
+      const context = await createTestServer(executor);
+      const pending = api(context, '/api/missions/research', {
+        method: 'POST', body: JSON.stringify({ mission: 'Preserve my decision' }),
+      });
+      const { runId } = await started;
+      try {
+        for (const action of ['RESEARCH_MORE', 'REJECT']) {
+          const response = await api(context, `/api/missions/${runId}/master-decision`, {
+            method: 'POST', body: JSON.stringify({ action, note: `Master: ${action}` }),
+          });
+          expect(response.status).toBe(200);
+        }
+      } finally {
+        release();
+      }
+      expect((await pending).status).toBe(outcome === 'completed' ? 200 : 503);
+      const verify = async (server: TestContext): Promise<void> => {
+        const response = await api(server, `/api/missions/${runId}`);
+        const detail = await response.json() as {
+          run: { status: string; finalValue?: string };
+          masterDecisions: Array<{ action: string; note: string }>;
+          audit: Array<{ stage: string; detail: string }>;
+        };
+        expect(detail.run.status).toBe(outcome);
+        expect(detail.run.finalValue).toBe(outcome === 'completed' ? 'YES' : undefined);
+        expect(detail.masterDecisions).toEqual([
+          expect.objectContaining({ action: 'RESEARCH_MORE', note: 'Master: RESEARCH_MORE' }),
+          expect.objectContaining({ action: 'REJECT', note: 'Master: REJECT' }),
+        ]);
+        expect(detail.audit.filter((item): boolean => item.stage === 'master_decision')).toEqual([
+          { stage: 'master_decision', detail: 'Master decision recorded: RESEARCH_MORE' },
+          { stage: 'master_decision', detail: 'Master decision recorded: REJECT' },
+        ]);
+      };
+      await verify(context);
+      await context.server.close();
+      contexts.splice(contexts.indexOf(context), 1);
+      const restarted = await createTestServer(new TestExecutor(), join(context.directory, 'missions.json'));
+      await verify(restarted);
+    },
+  );
+
   test('requires bearer auth and exposes runtime compatibility metadata', async (): Promise<void> => {
     const context = await createTestServer();
 
