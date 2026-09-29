@@ -22,6 +22,10 @@ The store is optional for compatibility. Callers that omit it do not have replay
 protection. Use one persistent directory shared by all workers on the same host.
 Supply tenant identity and provider policy from the authenticated server context;
 this store is not an authorization layer and cannot trust client-selected tenants.
+Tenant IDs are treated as opaque exact identities by the claim store; if the
+application canonicalizes tenant IDs, enforce uniqueness at identity assignment
+and authentication before constructing the execution plan. Signal IDs normalize
+surrounding whitespace only.
 
 Before resolving any nonempty plan, the executor atomically reserves its
 `(tenantId, signalId)` pair. The same pair cannot execute twice, even if the second
