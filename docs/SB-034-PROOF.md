@@ -21,8 +21,8 @@ Mocks, static grep checks, configuration readiness, or CI from another SHA do no
 The proof branch is self-contained by default:
 
 - `nexus1000/` contains the fail-closed NEXUS-1000 reference runtime used by the bridge;
-- `scripts/sb034-github-live-provider.mjs` performs real HTTPS retrieval from GitHub for the exact tested SHA;
-- the live provider hashes retrieved bytes and records citation, source family, provider identity, and content hash;
+- `scripts/sb034-github-live-provider.mjs` performs real HTTPS retrieval from GitHub for the exact tested SHA and an independent npm-registry supply-chain cross-check for blinded dissent;
+- the live provider hashes retrieved bytes and records citation, source family, provider identity, trust boundary, and content hash;
 - pull-request checkout is pinned to the PR head SHA instead of GitHub's temporary merge ref;
 - the default proof question and provider require no repository secrets.
 

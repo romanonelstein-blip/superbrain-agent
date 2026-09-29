@@ -137,6 +137,7 @@ function provenanceRecord(item, role) {
     id: item.id,
     sourceId: item.sourceId,
     sourceFamily: item.sourceFamily,
+    trustBoundary: item.trustBoundary ?? null,
     verified: item.verified === true,
     citation: item.citation ?? null,
     contentHash: item.contentHash ?? null,
@@ -192,6 +193,7 @@ async function main() {
       && typeof item.citation === 'string' && item.citation.length > 0
       && typeof item.contentHash === 'string' && item.contentHash.length > 0
       && typeof item.provider === 'string' && item.provider.length > 0
+      && typeof item.trustBoundary === 'string' && item.trustBoundary.length > 0
     );
 
     report.positiveRun = {

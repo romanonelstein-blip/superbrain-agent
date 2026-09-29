@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 const owner = 'romanonelstein-blip';
 const repo = 'superbrain-agent';
 const repositoryTrustBoundary = `github:${owner}/${repo}`;
+const npmTrustBoundary = 'npm:registry.npmjs.org';
 const sha = process.env.SUPERBRAIN_PROOF_SHA?.trim() || process.env.GITHUB_SHA?.trim();
 
 function hash(buffer) {
@@ -28,7 +29,7 @@ async function liveStatus() {
     ready: true,
     interactiveMissionsAvailable: true,
     researchMissionsAvailable: true,
-    configuredProviders: ['github-rest-live', 'github-raw-live', 'github-proof-contract-live'],
+    configuredProviders: ['github-rest-live', 'github-raw-live', 'npm-registry-live'],
   };
 }
 
@@ -38,19 +39,36 @@ async function collect(request) {
 
   const commitUrl = `https://api.github.com/repos/${owner}/${repo}/commits/${sha}`;
   const packageUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${sha}/package.json`;
+  const lockUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${sha}/package-lock.json`;
   const proofUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${sha}/docs/SB-034-PROOF.md`;
-  const [commitSource, packageSource, proofSource] = await Promise.all([
+  const [commitSource, packageSource, lockSource, proofSource] = await Promise.all([
     fetchBytes(commitUrl, 'application/vnd.github+json'),
     fetchBytes(packageUrl, 'text/plain'),
+    fetchBytes(lockUrl, 'text/plain'),
     fetchBytes(proofUrl, 'text/plain'),
   ]);
 
   const commit = JSON.parse(commitSource.text);
   const pkg = JSON.parse(packageSource.text);
+  const lock = JSON.parse(lockSource.text);
   if (commit.sha !== sha) throw new Error('GitHub returned a different commit SHA than requested.');
   if (pkg.name !== 'superbrain-agent') throw new Error('Live package manifest identity check failed.');
   if (!proofSource.text.includes('grand_council') || !proofSource.text.includes('verifier')) {
     throw new Error('Live SB-034 proof contract is missing required gate names.');
+  }
+
+  const lockedExeca = lock?.packages?.['node_modules/execa'];
+  if (!lockedExeca?.version || !lockedExeca?.integrity) {
+    throw new Error('Exact proof lockfile is missing execa version/integrity metadata.');
+  }
+  const npmMetadataUrl = `https://registry.npmjs.org/execa/${encodeURIComponent(lockedExeca.version)}`;
+  const npmSource = await fetchBytes(npmMetadataUrl, 'application/json');
+  const npmMetadata = JSON.parse(npmSource.text);
+  if (npmMetadata.name !== 'execa' || npmMetadata.version !== lockedExeca.version) {
+    throw new Error('Independent npm registry returned unexpected package metadata.');
+  }
+  if (npmMetadata.dist?.integrity !== lockedExeca.integrity) {
+    throw new Error('Independent npm registry integrity does not match the exact proof lockfile.');
   }
 
   const retrievedAt = new Date().toISOString();
@@ -81,21 +99,22 @@ async function collect(request) {
     ],
     dissent: {
       completed: true,
-      provider: 'github-proof-contract-live',
+      provider: 'npm-registry-live',
       requestId: `${requestId}-dissent`,
       evidence: [
         {
-          ...common,
-          id: `github-proof-contract-${sha.slice(0, 16)}`,
-          claim: 'The live SB-034 proof contract challenges approval unless every canonical gate and a fail-closed negative case are evidenced on the exact tested SHA.',
-          stance: 'challenge', sourceId: proofUrl, sourceFamily: 'github-proof-contract', reliability: 0.9,
-          freshness: 1, relevance: 1, verified: true, citation: proofUrl,
-          contentHash: hash(proofSource.bytes), contentType: 'text/plain',
-          provider: 'github-proof-contract-live', providerRequestId: `${requestId}-dissent`, providerAttempts: 1,
+          trustBoundary: npmTrustBoundary,
+          retrievedAt,
+          id: `npm-execa-${lockedExeca.version.replace(/[^a-zA-Z0-9.-]/g, '-')}`,
+          claim: `Independent npm registry metadata confirms locked dependency execa@${lockedExeca.version} and its integrity for the exact proof commit, challenging approval based only on repository-controlled evidence.`,
+          stance: 'challenge', sourceId: npmMetadataUrl, sourceFamily: 'registry.npmjs.org', reliability: 0.95,
+          freshness: 1, relevance: 1, verified: true, citation: npmMetadataUrl,
+          contentHash: hash(npmSource.bytes), contentType: 'application/json',
+          provider: 'npm-registry-live', providerRequestId: `${requestId}-dissent`, providerAttempts: 1,
         },
       ],
     },
-    audit: [{ stage: 'live_provider', detail: `Fetched exact commit, package manifest, and proof contract for ${sha}.` }],
+    audit: [{ stage: 'live_provider', detail: `Fetched exact commit/package/proof contract for ${sha} and independently cross-checked locked execa@${lockedExeca.version} against npm registry integrity.` }],
     verificationNote: `Live GitHub provenance collected for exact SHA ${sha}.`,
   };
 }
