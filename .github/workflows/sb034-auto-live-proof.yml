@@ -1,0 +1,135 @@
+name: SB-034 Auto Live Proof
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'python/**'
+      - 'nexus1000/**'
+      - 'scripts/sb034-live-proof.mjs'
+      - 'scripts/sb034-github-live-provider.mjs'
+      - 'docs/SB-034-PROOF.md'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/sb034-auto-live-proof.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sb034-auto-live-proof-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact SuperBrain proof SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Checkout external NEXUS-1000 core
+        if: ${{ vars.SUPERBRAIN_NEXUS_REPOSITORY != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.SUPERBRAIN_NEXUS_REPOSITORY }}
+          ref: ${{ vars.SUPERBRAIN_NEXUS_REF }}
+          path: .sb034-nexus
+          token: ${{ secrets.SUPERBRAIN_NEXUS_REPO_TOKEN || github.token }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm run lint
+      - run: npm test
+      - run: python -m py_compile python/nexus_bridge_runner.py nexus1000/*.py
+
+      - name: Configure SB-034 runtime
+        shell: bash
+        env:
+          NEXUS_REPOSITORY: ${{ vars.SUPERBRAIN_NEXUS_REPOSITORY }}
+          FALLBACK_NEXUS_ROOT: ${{ vars.SUPERBRAIN_NEXUS_ROOT }}
+          SB034_QUESTION: ${{ vars.SUPERBRAIN_SB034_QUESTION }}
+          HTTP_PRIMARY: ${{ vars.SUPERBRAIN_RESEARCH_PRIMARY_ENDPOINT }}
+          HTTP_DISSENT: ${{ vars.SUPERBRAIN_RESEARCH_DISSENT_ENDPOINT }}
+          HTTP_PRIMARY_NAME: ${{ vars.SUPERBRAIN_RESEARCH_PRIMARY_NAME }}
+          HTTP_DISSENT_NAME: ${{ vars.SUPERBRAIN_RESEARCH_DISSENT_NAME }}
+          HTTP_ALLOWED_HOSTS: ${{ vars.SUPERBRAIN_RESEARCH_ALLOWED_HOSTS }}
+          HTTP_MIN_PRIMARY_SOURCES: ${{ vars.SUPERBRAIN_RESEARCH_MIN_PRIMARY_SOURCES }}
+          HTTP_MIN_PRIMARY_FAMILIES: ${{ vars.SUPERBRAIN_RESEARCH_MIN_PRIMARY_FAMILIES }}
+          HTTP_MIN_DISSENT_SOURCES: ${{ vars.SUPERBRAIN_RESEARCH_MIN_DISSENT_SOURCES }}
+          HTTP_REQUIRE_DISTINCT_DISSENT: ${{ vars.SUPERBRAIN_RESEARCH_REQUIRE_DISTINCT_DISSENT_FAMILY }}
+          COMMAND_PROVIDER: ${{ vars.SUPERBRAIN_EVIDENCE_PROVIDER_COMMAND }}
+          COMMAND_ARGS: ${{ vars.SUPERBRAIN_EVIDENCE_PROVIDER_ARGS }}
+          COMMAND_NAME: ${{ vars.SUPERBRAIN_EVIDENCE_PROVIDER_NAME }}
+          COMMAND_TIMEOUT: ${{ vars.SUPERBRAIN_EVIDENCE_PROVIDER_TIMEOUT_MS }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "$NEXUS_REPOSITORY" ]; then
+            echo "SUPERBRAIN_NEXUS_ROOT=$GITHUB_WORKSPACE/.sb034-nexus" >> "$GITHUB_ENV"
+          elif [ -n "$FALLBACK_NEXUS_ROOT" ]; then
+            echo "SUPERBRAIN_NEXUS_ROOT=$FALLBACK_NEXUS_ROOT" >> "$GITHUB_ENV"
+          else
+            echo "SUPERBRAIN_NEXUS_ROOT=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
+          fi
+
+          if [ -n "$SB034_QUESTION" ]; then
+            echo "SUPERBRAIN_SB034_QUESTION=$SB034_QUESTION" >> "$GITHUB_ENV"
+          else
+            echo "SUPERBRAIN_SB034_QUESTION=Does this exact SuperBrain proof commit satisfy the SB-034 live-provider and four-gate NEXUS-1000 proof contract?" >> "$GITHUB_ENV"
+          fi
+
+          if [ -n "$HTTP_PRIMARY" ] || [ -n "$HTTP_DISSENT" ]; then
+            echo "SUPERBRAIN_RESEARCH_PRIMARY_ENDPOINT=$HTTP_PRIMARY" >> "$GITHUB_ENV"
+            echo "SUPERBRAIN_RESEARCH_DISSENT_ENDPOINT=$HTTP_DISSENT" >> "$GITHUB_ENV"
+            echo "SUPERBRAIN_RESEARCH_PRIMARY_NAME=$HTTP_PRIMARY_NAME" >> "$GITHUB_ENV"
+            echo "SUPERBRAIN_RESEARCH_DISSENT_NAME=$HTTP_DISSENT_NAME" >> "$GITHUB_ENV"
+            echo "SUPERBRAIN_RESEARCH_ALLOWED_HOSTS=$HTTP_ALLOWED_HOSTS" >> "$GITHUB_ENV"
+            echo "SUPERBRAIN_RESEARCH_MIN_PRIMARY_SOURCES=$HTTP_MIN_PRIMARY_SOURCES" >> "$GITHUB_ENV"
+            echo "SUPERBRAIN_RESEARCH_MIN_PRIMARY_FAMILIES=$HTTP_MIN_PRIMARY_FAMILIES" >> "$GITHUB_ENV"
+            echo "SUPERBRAIN_RESEARCH_MIN_DISSENT_SOURCES=$HTTP_MIN_DISSENT_SOURCES" >> "$GITHUB_ENV"
+            echo "SUPERBRAIN_RESEARCH_REQUIRE_DISTINCT_DISSENT_FAMILY=$HTTP_REQUIRE_DISTINCT_DISSENT" >> "$GITHUB_ENV"
+          elif [ -n "$COMMAND_PROVIDER" ]; then
+            echo "SUPERBRAIN_EVIDENCE_PROVIDER_COMMAND=$COMMAND_PROVIDER" >> "$GITHUB_ENV"
+            echo "SUPERBRAIN_EVIDENCE_PROVIDER_ARGS=$COMMAND_ARGS" >> "$GITHUB_ENV"
+            echo "SUPERBRAIN_EVIDENCE_PROVIDER_NAME=$COMMAND_NAME" >> "$GITHUB_ENV"
+            echo "SUPERBRAIN_EVIDENCE_PROVIDER_TIMEOUT_MS=$COMMAND_TIMEOUT" >> "$GITHUB_ENV"
+          else
+            echo "SUPERBRAIN_EVIDENCE_PROVIDER_COMMAND=node" >> "$GITHUB_ENV"
+            echo 'SUPERBRAIN_EVIDENCE_PROVIDER_ARGS=["scripts/sb034-github-live-provider.mjs"]' >> "$GITHUB_ENV"
+            echo "SUPERBRAIN_EVIDENCE_PROVIDER_NAME=github-live-proof" >> "$GITHUB_ENV"
+            echo "SUPERBRAIN_EVIDENCE_PROVIDER_TIMEOUT_MS=60000" >> "$GITHUB_ENV"
+          fi
+
+      - name: Execute SB-034 live-provider proof
+        env:
+          SUPERBRAIN_PROOF_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          SUPERBRAIN_RESEARCH_PRIMARY_TOKEN: ${{ secrets.SUPERBRAIN_RESEARCH_PRIMARY_TOKEN }}
+          SUPERBRAIN_RESEARCH_DISSENT_TOKEN: ${{ secrets.SUPERBRAIN_RESEARCH_DISSENT_TOKEN }}
+        run: |
+          unset GITHUB_SHA
+          npm run sb034:live
+
+      - name: Upload SB-034 proof artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sb034-live-proof-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/sb034-live-proof.json
+          if-no-files-found: error
+          retention-days: 30

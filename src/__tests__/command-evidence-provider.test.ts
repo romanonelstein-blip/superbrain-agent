@@ -55,6 +55,7 @@ describe('CommandMissionEvidenceProvider', (): void => {
             stance: 'support',
             sourceId: 'fixture-source',
             sourceFamily: 'fixture',
+            trustBoundary: 'fixture-primary',
             reliability: 0.9,
             freshness: 0.8,
             relevance: 1,
@@ -72,6 +73,7 @@ describe('CommandMissionEvidenceProvider', (): void => {
               stance: 'challenge',
               sourceId: 'fixture-dissent-source',
               sourceFamily: 'fixture',
+              trustBoundary: 'fixture-dissent',
               verified: true,
               citation: 'fixture://d1',
               contentHash: 'sha256:dissent'
@@ -102,6 +104,7 @@ describe('CommandMissionEvidenceProvider', (): void => {
         verified: true,
         citation: 'fixture://e1',
         contentHash: 'sha256:fixture',
+        trustBoundary: 'fixture-primary',
       }),
     ]);
     expect(bundle.dissent).toEqual(expect.objectContaining({
@@ -134,6 +137,7 @@ describe('CommandMissionEvidenceProvider', (): void => {
             claim: 'Invalid verified claim',
             sourceId: 'fixture-source',
             sourceFamily: 'fixture',
+            trustBoundary: 'fixture-invalid',
             verified: true
           }]
         }));

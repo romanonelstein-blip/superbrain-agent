@@ -31,6 +31,7 @@ struct EvidenceItem: Identifiable, Decodable {
     let verified: Bool
     let sourceId: String?
     let sourceFamily: String?
+    let trustBoundary: String?
     let citation: String?
     let stance: String?
 }

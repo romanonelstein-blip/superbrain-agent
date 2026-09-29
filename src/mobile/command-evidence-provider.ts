@@ -157,6 +157,7 @@ export class CommandMissionEvidenceProvider implements MissionEvidenceProvider {
     const claim = this.requiredString(object.claim, `${field}.claim`, 50_000);
     const sourceId = this.requiredString(object.sourceId, `${field}.sourceId`, 4_000);
     const sourceFamily = this.requiredString(object.sourceFamily, `${field}.sourceFamily`, 500);
+    const trustBoundary = this.requiredString(object.trustBoundary, `${field}.trustBoundary`, 1_000);
     const verified = object.verified === true;
     const citation = object.citation === undefined
       ? undefined
@@ -201,6 +202,7 @@ export class CommandMissionEvidenceProvider implements MissionEvidenceProvider {
       claim,
       sourceId,
       sourceFamily,
+      trustBoundary,
       ...(stance ? { stance } : {}),
       ...(reliability !== undefined ? { reliability } : {}),
       ...(freshness !== undefined ? { freshness } : {}),

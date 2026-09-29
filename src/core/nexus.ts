@@ -12,6 +12,7 @@ export interface NexusEvidenceInput {
   stance?: NexusStance;
   sourceId: string;
   sourceFamily: string;
+  trustBoundary: string;
   reliability?: number;
   freshness?: number;
   relevance?: number;
@@ -147,8 +148,8 @@ export class NexusBridge {
   }
 
   private validateEvidence(item: NexusEvidenceInput): void {
-    if (!item.id.trim() || !item.claim.trim() || !item.sourceId.trim() || !item.sourceFamily.trim()) {
-      throw new Error('NEXUS evidence is missing required provenance fields.');
+    if (!item.id.trim() || !item.claim.trim() || !item.sourceId.trim() || !item.sourceFamily.trim() || !item.trustBoundary.trim()) {
+      throw new Error('NEXUS evidence is missing required provenance or trust-boundary fields.');
     }
     if (item.verified === true && (!item.citation?.trim() || !item.contentHash?.trim())) {
       throw new Error('Verified NEXUS evidence requires citation and contentHash.');

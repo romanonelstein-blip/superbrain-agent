@@ -59,6 +59,7 @@ function evidence(): NexusEvidenceInput[] {
     stance: 'support',
     sourceId: 'fixture-source',
     sourceFamily: 'fixture',
+    trustBoundary: 'fixture-boundary',
     verified: true,
     citation: 'fixture://e1',
     contentHash: 'sha256:fixture',
@@ -137,6 +138,7 @@ describe('NexusMissionExecutor', (): void => {
         verified: true,
         citation: 'fixture://e1',
         stance: 'support',
+        trustBoundary: 'fixture-boundary',
       }),
     ]);
     expect(result.audit).toEqual(expect.arrayContaining([
