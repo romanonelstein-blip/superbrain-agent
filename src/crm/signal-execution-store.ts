@@ -11,21 +11,23 @@ export interface NovaProspectsExecutionStore {
 export class FileSignalExecutionStore implements NovaProspectsExecutionStore {
   private readonly directory: string;
 
+  /** Create a file-backed claim store rooted at a trusted persistent directory. */
   constructor(directory: string) {
     if (!directory.trim()) throw new Error('Execution store directory must not be empty');
     this.directory = resolve(directory);
   }
 
+  /** Atomically claim an exact tenant identity plus a normalized signal identity. */
   async claim(tenantId: string, signalId: string): Promise<'CLAIMED' | 'ALREADY_CLAIMED'> {
-    const canonicalTenantId = tenantId.trim();
     const canonicalSignalId = signalId.trim();
-    if (!canonicalTenantId || !canonicalSignalId) {
+    if (!tenantId.trim() || !canonicalSignalId) {
       throw new Error('Execution identity must not be empty');
     }
-    // Canonicalizing only surrounding whitespace prevents accidental replay
-    // bypass without changing case-sensitive application identifiers.
+    // Tenant identifiers are opaque authorization identities and must remain
+    // byte-for-byte distinct. Only signal IDs normalize surrounding whitespace
+    // to prevent accidental replay aliases for the same authenticated tenant.
     const key = createHash('sha256')
-      .update(JSON.stringify([canonicalTenantId, canonicalSignalId]))
+      .update(JSON.stringify([tenantId, canonicalSignalId]))
       .digest('hex');
 
     try {
