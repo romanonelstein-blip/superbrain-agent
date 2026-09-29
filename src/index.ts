@@ -106,3 +106,69 @@ export type {
   RealitySignal,
   RealitySignalDirection,
 } from './core/reality-sentinel.js';
+
+export { CrmDataGateway } from './crm/data-gateway.js';
+export type {
+  CrmDataCapability,
+  CrmDataGatewayResponse,
+  CrmDataGatewayWeights,
+  CrmDataInput,
+  CrmDataInputValue,
+  CrmDataProvider,
+  CrmDataRequest,
+  CrmDataResult,
+  CrmEvidenceReference,
+  CrmGatewayAttempt,
+  CrmProviderProfile,
+  CrmProviderStatus,
+} from './crm/data-gateway.js';
+
+export { FetchJsonHttpTransport } from './crm/http-json-transport.js';
+export type {
+  JsonHttpMethod,
+  JsonHttpQueryValue,
+  JsonHttpRequest,
+  JsonHttpResponse,
+  JsonHttpTransport,
+} from './crm/http-json-transport.js';
+
+export { ApolloDataProvider } from './crm/providers/apollo-provider.js';
+export type { ApolloDataProviderConfig } from './crm/providers/apollo-provider.js';
+
+export { HunterDataProvider } from './crm/providers/hunter-provider.js';
+export type { HunterDataProviderConfig } from './crm/providers/hunter-provider.js';
+
+
+export {
+  NovaProspectsSignalExecutor,
+  planNovaProspectsSignal,
+} from './crm/novaprospects-signal-planner.js';
+export type {
+  CrmDataResolver,
+  NovaProspectsExecutionItem,
+  NovaProspectsExecutionResult,
+  NovaProspectsSignal,
+  NovaProspectsSignalKind,
+  NovaProspectsSignalPlan,
+  NovaProspectsSignalPolicy,
+  NovaProspectsSignalSubject,
+} from './crm/novaprospects-signal-planner.js';
+
+
+export { ClayDataProvider } from './crm/providers/clay-provider.js';
+export type { ClayDataProviderConfig } from './crm/providers/clay-provider.js';
+
+
+export type { CrmDataGatewayStopReason } from './crm/data-gateway.js';
+
+
+export type {
+  CrmGatewayAttemptAuditEvent,
+  CrmGatewayAuditEvent,
+  CrmGatewayAuditOptions,
+  CrmGatewayAuditSink,
+  CrmGatewayStoppedAuditEvent,
+} from './crm/gateway-audit.js';
+
+export { FileSignalExecutionStore } from './crm/signal-execution-store.js';
+export type { NovaProspectsExecutionStore } from './crm/signal-execution-store.js';

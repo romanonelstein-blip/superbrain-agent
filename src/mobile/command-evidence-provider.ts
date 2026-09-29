@@ -58,9 +58,18 @@ export class CommandMissionEvidenceProvider implements MissionEvidenceProvider {
 
   async getStatus(): Promise<MissionEvidenceProviderStatus> {
     try {
-      const raw = await this.invoke({ protocolVersion: 1, type: 'status' });
+      const raw = await this.invoke({
+        protocolVersion: 1,
+        type: 'status',
+      });
       const ready = raw.ready === true;
-      if (!ready) return { interactiveMissionsAvailable: false, researchMissionsAvailable: false, configuredProviders: [] };
+      if (!ready) {
+        return {
+          interactiveMissionsAvailable: false,
+          researchMissionsAvailable: false,
+          configuredProviders: [],
+        };
+      }
       const configuredProviders = this.stringArray(raw.configuredProviders, 'configuredProviders', 50, 200);
       return {
         interactiveMissionsAvailable: raw.interactiveMissionsAvailable === true,
@@ -68,30 +77,71 @@ export class CommandMissionEvidenceProvider implements MissionEvidenceProvider {
         configuredProviders: configuredProviders.length > 0 ? configuredProviders : [this.providerName],
       };
     } catch {
-      return { interactiveMissionsAvailable: false, researchMissionsAvailable: false, configuredProviders: [] };
+      return {
+        interactiveMissionsAvailable: false,
+        researchMissionsAvailable: false,
+        configuredProviders: [],
+      };
     }
   }
 
   async collect(input: MissionExecutionInput): Promise<MissionEvidenceBundle> {
-    const raw = await this.invoke({ protocolVersion: 1, type: 'collect', runId: input.runId, question: input.question, mode: input.mode });
+    const raw = await this.invoke({
+      protocolVersion: 1,
+      type: 'collect',
+      runId: input.runId,
+      question: input.question,
+      mode: input.mode,
+    });
+
     const evidence = this.evidenceArray(raw.evidence, 'evidence');
     if (evidence.length === 0) throw new Error('Evidence provider returned no evidence.');
+
     const dissent = raw.dissent === undefined ? undefined : this.dissent(raw.dissent);
-    const draftResponses = raw.draftResponses === undefined ? undefined : this.drafts(raw.draftResponses);
+    const draftResponses = raw.draftResponses === undefined
+      ? undefined
+      : this.drafts(raw.draftResponses);
     const audit = raw.audit === undefined ? undefined : this.audit(raw.audit);
-    const verificationNote = raw.verificationNote === undefined ? undefined : this.optionalString(raw.verificationNote, 'verificationNote', 20_000);
-    return { evidence, ...(dissent ? { dissent } : {}), ...(draftResponses ? { draftResponses } : {}), ...(audit ? { audit } : {}), ...(verificationNote ? { verificationNote } : {}) };
+    const verificationNote = raw.verificationNote === undefined
+      ? undefined
+      : this.optionalString(raw.verificationNote, 'verificationNote', 20_000);
+
+    return {
+      evidence,
+      ...(dissent ? { dissent } : {}),
+      ...(draftResponses ? { draftResponses } : {}),
+      ...(audit ? { audit } : {}),
+      ...(verificationNote ? { verificationNote } : {}),
+    };
   }
 
   private async invoke(payload: ProviderRequest): Promise<JsonObject> {
-    const { stdout } = await execa(this.command, this.args, { input: JSON.stringify(payload), timeout: this.timeoutMs, reject: true, maxBuffer: this.maxOutputBytes, shell: false, env: { ...process.env, SUPERBRAIN_EVIDENCE_PROTOCOL: '1' } });
+    const { stdout } = await execa(this.command, this.args, {
+      input: JSON.stringify(payload),
+      timeout: this.timeoutMs,
+      reject: true,
+      maxBuffer: this.maxOutputBytes,
+      shell: false,
+      env: {
+        ...process.env,
+        SUPERBRAIN_EVIDENCE_PROTOCOL: '1',
+      },
+    });
     const text = stdout.trim();
     if (!text) throw new Error('Evidence provider returned empty stdout.');
     let parsed: unknown;
-    try { parsed = JSON.parse(text) as unknown; } catch { throw new Error('Evidence provider stdout must contain exactly one JSON object.'); }
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Evidence provider stdout must be a JSON object.');
+    try {
+      parsed = JSON.parse(text) as unknown;
+    } catch {
+      throw new Error('Evidence provider stdout must contain exactly one JSON object.');
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('Evidence provider stdout must be a JSON object.');
+    }
     const object = parsed as JsonObject;
-    if (object.protocolVersion !== undefined && object.protocolVersion !== 1) throw new Error('Unsupported evidence provider protocol version.');
+    if (object.protocolVersion !== undefined && object.protocolVersion !== 1) {
+      throw new Error('Unsupported evidence provider protocol version.');
+    }
     return object;
   }
 
@@ -109,32 +159,83 @@ export class CommandMissionEvidenceProvider implements MissionEvidenceProvider {
     const sourceFamily = this.requiredString(object.sourceFamily, `${field}.sourceFamily`, 500);
     const trustBoundary = this.requiredString(object.trustBoundary, `${field}.trustBoundary`, 1_000);
     const verified = object.verified === true;
-    const citation = object.citation === undefined ? undefined : this.optionalString(object.citation, `${field}.citation`, 8_000);
-    const contentHash = object.contentHash === undefined ? undefined : this.optionalString(object.contentHash, `${field}.contentHash`, 1_000);
-    if (verified && (!citation || !contentHash)) throw new Error(`${field}: verified evidence requires citation and contentHash.`);
+    const citation = object.citation === undefined
+      ? undefined
+      : this.optionalString(object.citation, `${field}.citation`, 8_000);
+    const contentHash = object.contentHash === undefined
+      ? undefined
+      : this.optionalString(object.contentHash, `${field}.contentHash`, 1_000);
+    if (verified && (!citation || !contentHash)) {
+      throw new Error(`${field}: verified evidence requires citation and contentHash.`);
+    }
+
     const stance = object.stance === undefined ? undefined : this.stance(object.stance, `${field}.stance`);
     const reliability = this.optionalScore(object.reliability, `${field}.reliability`);
     const freshness = this.optionalScore(object.freshness, `${field}.freshness`);
     const relevance = this.optionalScore(object.relevance, `${field}.relevance`);
-    const retrievedAt = object.retrievedAt === undefined ? undefined : this.optionalString(object.retrievedAt, `${field}.retrievedAt`, 200);
-    const location = object.location === undefined ? undefined : this.optionalString(object.location, `${field}.location`, 2_000);
-    const contentType = object.contentType === undefined ? undefined : this.optionalString(object.contentType, `${field}.contentType`, 500);
-    const provider = object.provider === undefined ? undefined : this.optionalString(object.provider, `${field}.provider`, 500);
-    const providerModel = object.providerModel === undefined ? undefined : this.optionalString(object.providerModel, `${field}.providerModel`, 500);
-    const providerRequestId = object.providerRequestId === undefined ? undefined : this.optionalString(object.providerRequestId, `${field}.providerRequestId`, 2_000);
-    const providerAgent = object.providerAgent === undefined ? undefined : this.optionalString(object.providerAgent, `${field}.providerAgent`, 500);
+    const retrievedAt = object.retrievedAt === undefined
+      ? undefined
+      : this.optionalString(object.retrievedAt, `${field}.retrievedAt`, 200);
+    const location = object.location === undefined
+      ? undefined
+      : this.optionalString(object.location, `${field}.location`, 2_000);
+    const contentType = object.contentType === undefined
+      ? undefined
+      : this.optionalString(object.contentType, `${field}.contentType`, 500);
+    const provider = object.provider === undefined
+      ? undefined
+      : this.optionalString(object.provider, `${field}.provider`, 500);
+    const providerModel = object.providerModel === undefined
+      ? undefined
+      : this.optionalString(object.providerModel, `${field}.providerModel`, 500);
+    const providerRequestId = object.providerRequestId === undefined
+      ? undefined
+      : this.optionalString(object.providerRequestId, `${field}.providerRequestId`, 2_000);
+    const providerAgent = object.providerAgent === undefined
+      ? undefined
+      : this.optionalString(object.providerAgent, `${field}.providerAgent`, 500);
     const providerAttempts = this.optionalInteger(object.providerAttempts, `${field}.providerAttempts`, 0, 100);
     const providerLatencyMs = this.optionalInteger(object.providerLatencyMs, `${field}.providerLatencyMs`, 0, 60 * 60 * 1000);
-    return { id, claim, sourceId, sourceFamily, trustBoundary, ...(stance ? { stance } : {}), ...(reliability !== undefined ? { reliability } : {}), ...(freshness !== undefined ? { freshness } : {}), ...(relevance !== undefined ? { relevance } : {}), ...(verified ? { verified: true } : {}), ...(citation ? { citation } : {}), ...(contentHash ? { contentHash } : {}), ...(retrievedAt ? { retrievedAt } : {}), ...(location ? { location } : {}), ...(contentType ? { contentType } : {}), ...(provider ? { provider } : {}), ...(providerModel ? { providerModel } : {}), ...(providerRequestId ? { providerRequestId } : {}), ...(providerAgent ? { providerAgent } : {}), ...(providerAttempts !== undefined ? { providerAttempts } : {}), ...(providerLatencyMs !== undefined ? { providerLatencyMs } : {}) };
+
+    return {
+      id,
+      claim,
+      sourceId,
+      sourceFamily,
+      trustBoundary,
+      ...(stance ? { stance } : {}),
+      ...(reliability !== undefined ? { reliability } : {}),
+      ...(freshness !== undefined ? { freshness } : {}),
+      ...(relevance !== undefined ? { relevance } : {}),
+      ...(verified ? { verified: true } : {}),
+      ...(citation ? { citation } : {}),
+      ...(contentHash ? { contentHash } : {}),
+      ...(retrievedAt ? { retrievedAt } : {}),
+      ...(location ? { location } : {}),
+      ...(contentType ? { contentType } : {}),
+      ...(provider ? { provider } : {}),
+      ...(providerModel ? { providerModel } : {}),
+      ...(providerRequestId ? { providerRequestId } : {}),
+      ...(providerAgent ? { providerAgent } : {}),
+      ...(providerAttempts !== undefined ? { providerAttempts } : {}),
+      ...(providerLatencyMs !== undefined ? { providerLatencyMs } : {}),
+    };
   }
 
   private dissent(value: unknown): NexusDissentInput {
     const object = this.object(value, 'dissent');
     if (object.completed !== true) throw new Error('dissent.completed must be true.');
     const provider = this.requiredString(object.provider, 'dissent.provider', 500);
-    const requestId = object.requestId === undefined ? undefined : this.optionalString(object.requestId, 'dissent.requestId', 2_000);
+    const requestId = object.requestId === undefined
+      ? undefined
+      : this.optionalString(object.requestId, 'dissent.requestId', 2_000);
     const evidence = this.evidenceArray(object.evidence, 'dissent.evidence');
-    return { completed: true, provider, ...(requestId ? { requestId } : {}), evidence };
+    return {
+      completed: true,
+      provider,
+      ...(requestId ? { requestId } : {}),
+      evidence,
+    };
   }
 
   private drafts(value: unknown): MissionDraft[] {
@@ -142,10 +243,20 @@ export class CommandMissionEvidenceProvider implements MissionEvidenceProvider {
     if (value.length > 100) throw new Error('draftResponses exceeds the maximum of 100 items.');
     return value.map((item, index): MissionDraft => {
       const object = this.object(item, `draftResponses[${index}]`);
-      const agent = object.agent === undefined ? undefined : this.optionalString(object.agent, `draftResponses[${index}].agent`, 500);
-      const text = object.text === undefined ? undefined : this.optionalString(object.text, `draftResponses[${index}].text`, 100_000);
-      const verified = object.verified === undefined ? undefined : this.boolean(object.verified, `draftResponses[${index}].verified`);
-      return { ...(agent ? { agent } : {}), ...(text ? { text } : {}), ...(verified !== undefined ? { verified } : {}) };
+      const agent = object.agent === undefined
+        ? undefined
+        : this.optionalString(object.agent, `draftResponses[${index}].agent`, 500);
+      const text = object.text === undefined
+        ? undefined
+        : this.optionalString(object.text, `draftResponses[${index}].text`, 100_000);
+      const verified = object.verified === undefined
+        ? undefined
+        : this.boolean(object.verified, `draftResponses[${index}].verified`);
+      return {
+        ...(agent ? { agent } : {}),
+        ...(text ? { text } : {}),
+        ...(verified !== undefined ? { verified } : {}),
+      };
     });
   }
 
@@ -154,16 +265,68 @@ export class CommandMissionEvidenceProvider implements MissionEvidenceProvider {
     if (value.length > 500) throw new Error('audit exceeds the maximum of 500 items.');
     return value.map((item, index): MissionAuditItem => {
       const object = this.object(item, `audit[${index}]`);
-      return { stage: this.requiredString(object.stage, `audit[${index}].stage`, 500), detail: this.requiredString(object.detail, `audit[${index}].detail`, 20_000) };
+      return {
+        stage: this.requiredString(object.stage, `audit[${index}].stage`, 500),
+        detail: this.requiredString(object.detail, `audit[${index}].detail`, 20_000),
+      };
     });
   }
 
-  private object(value: unknown, field: string): JsonObject { if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${field} must be an object.`); return value as JsonObject; }
-  private requiredString(value: unknown, field: string, maxLength: number): string { const parsed = this.optionalString(value, field, maxLength); if (!parsed) throw new Error(`${field} must be a non-empty string.`); return parsed; }
-  private optionalString(value: unknown, field: string, maxLength: number): string { if (typeof value !== 'string') throw new Error(`${field} must be a string.`); const parsed = value.trim(); if (parsed.length > maxLength) throw new Error(`${field} exceeds ${maxLength} characters.`); return parsed; }
-  private boolean(value: unknown, field: string): boolean { if (typeof value !== 'boolean') throw new Error(`${field} must be boolean.`); return value; }
-  private stance(value: unknown, field: string): NexusStance { if (value === 'support' || value === 'challenge' || value === 'neutral') return value; throw new Error(`${field} must be support, challenge or neutral.`); }
-  private optionalScore(value: unknown, field: string): number | undefined { if (value === undefined) return undefined; if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1) throw new Error(`${field} must be a number between 0 and 1.`); return value; }
-  private optionalInteger(value: unknown, field: string, minimum: number, maximum: number): number | undefined { if (value === undefined) return undefined; if (!Number.isInteger(value) || typeof value !== 'number' || value < minimum || value > maximum) throw new Error(`${field} must be an integer between ${minimum} and ${maximum}.`); return value; }
-  private stringArray(value: unknown, field: string, maxItems: number, maxLength: number): string[] { if (value === undefined) return []; if (!Array.isArray(value)) throw new Error(`${field} must be an array.`); if (value.length > maxItems) throw new Error(`${field} exceeds ${maxItems} items.`); return value.map((item, index): string => this.requiredString(item, `${field}[${index}]`, maxLength)); }
+  private object(value: unknown, field: string): JsonObject {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new Error(`${field} must be an object.`);
+    }
+    return value as JsonObject;
+  }
+
+  private requiredString(value: unknown, field: string, maxLength: number): string {
+    const parsed = this.optionalString(value, field, maxLength);
+    if (!parsed) throw new Error(`${field} must be a non-empty string.`);
+    return parsed;
+  }
+
+  private optionalString(value: unknown, field: string, maxLength: number): string {
+    if (typeof value !== 'string') throw new Error(`${field} must be a string.`);
+    const parsed = value.trim();
+    if (parsed.length > maxLength) throw new Error(`${field} exceeds ${maxLength} characters.`);
+    return parsed;
+  }
+
+  private boolean(value: unknown, field: string): boolean {
+    if (typeof value !== 'boolean') throw new Error(`${field} must be boolean.`);
+    return value;
+  }
+
+  private stance(value: unknown, field: string): NexusStance {
+    if (value === 'support' || value === 'challenge' || value === 'neutral') return value;
+    throw new Error(`${field} must be support, challenge or neutral.`);
+  }
+
+  private optionalScore(value: unknown, field: string): number | undefined {
+    if (value === undefined) return undefined;
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1) {
+      throw new Error(`${field} must be a number between 0 and 1.`);
+    }
+    return value;
+  }
+
+  private optionalInteger(
+    value: unknown,
+    field: string,
+    minimum: number,
+    maximum: number,
+  ): number | undefined {
+    if (value === undefined) return undefined;
+    if (!Number.isInteger(value) || typeof value !== 'number' || value < minimum || value > maximum) {
+      throw new Error(`${field} must be an integer between ${minimum} and ${maximum}.`);
+    }
+    return value;
+  }
+
+  private stringArray(value: unknown, field: string, maxItems: number, maxLength: number): string[] {
+    if (value === undefined) return [];
+    if (!Array.isArray(value)) throw new Error(`${field} must be an array.`);
+    if (value.length > maxItems) throw new Error(`${field} exceeds ${maxItems} items.`);
+    return value.map((item, index): string => this.requiredString(item, `${field}[${index}]`, maxLength));
+  }
 }

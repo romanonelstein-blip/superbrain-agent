@@ -152,6 +152,21 @@ class MissionStore {
     await this.persist();
   }
 
+  async finalize(item: StoredMission): Promise<void> {
+    await this.load();
+    const current = this.records.get(item.run.runId);
+    if (!current) throw new Error('Cannot finalize an unknown mission.');
+    // Merge against the live record, not the snapshot taken before execution.
+    // No await may separate reading it from replacing it: Master decisions
+    // can arrive while the executor is running or a disk write is pending.
+    this.records.set(item.run.runId, structuredClone({
+      ...item,
+      masterDecisions: current.masterDecisions,
+      audit: [...current.audit, ...item.audit],
+    }));
+    await this.persist();
+  }
+
   async addDecision(runId: string, decision: MasterDecisionRecord): Promise<StoredMission | null> {
     await this.load();
     const item = this.records.get(runId);
@@ -377,22 +392,21 @@ export class MissionControlServer {
         run: { ...initial.run, status: 'completed', finalValue },
         evidence: result.evidence,
         audit: [
-          ...initial.audit,
           ...result.audit,
           { stage: 'mission_completed', detail: 'Mission executor returned a completed result.' },
         ],
         masterDecisions: [],
         response: missionResponse,
       };
-      await this.store.upsert(completed);
+      await this.store.finalize(completed);
       this.sendJson(response, 200, missionResponse);
     } catch {
       const failed: StoredMission = {
         ...initial,
         run: { ...initial.run, status: 'failed' },
-        audit: [...initial.audit, { stage: 'mission_failed', detail: 'Mission executor failed closed.' }],
+        audit: [{ stage: 'mission_failed', detail: 'Mission executor failed closed.' }],
       };
-      await this.store.upsert(failed);
+      await this.store.finalize(failed);
       throw new HttpError(503, 'Mission execution failed closed. No NEXUS approval was produced.');
     }
   }
