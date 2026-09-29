@@ -48,11 +48,12 @@ describe('persistent signal execution guard', (): void => {
     expect(await new FileSignalExecutionStore(directory).claim('tenant', 'signal')).toBe('ALREADY_CLAIMED');
   });
 
-  test('canonicalizes surrounding identity whitespace to prevent replay aliases', async (): Promise<void> => {
+  test('normalizes signal whitespace without merging distinct tenant identifiers', async (): Promise<void> => {
     const store = new FileSignalExecutionStore(directory);
     expect(await store.claim('tenant', 'signal')).toBe('CLAIMED');
-    expect(await store.claim(' tenant ', ' signal ')).toBe('ALREADY_CLAIMED');
-    expect(await readdir(directory)).toHaveLength(1);
+    expect(await store.claim('tenant', ' signal ')).toBe('ALREADY_CLAIMED');
+    expect(await store.claim(' tenant ', 'signal')).toBe('CLAIMED');
+    expect(await readdir(directory)).toHaveLength(2);
   });
 
   test('sanitizes direct filesystem failures without leaking private paths', async (): Promise<void> => {
