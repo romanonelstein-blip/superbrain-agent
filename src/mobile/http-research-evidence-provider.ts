@@ -378,6 +378,7 @@ export class HttpResearchEvidenceProvider implements MissionEvidenceProvider {
           stance: result.stance ?? defaultStance,
           sourceId: source.url,
           sourceFamily: new URL(source.url).hostname.toLowerCase(),
+          trustBoundary: `research-provider:${providerName}`,
           reliability: this.sourceReliability(source),
           freshness: this.sourceFreshness(source),
           relevance: 1,

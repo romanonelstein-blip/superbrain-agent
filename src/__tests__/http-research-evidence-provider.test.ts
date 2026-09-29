@@ -130,6 +130,7 @@ describe('HttpResearchEvidenceProvider', (): void => {
       stance: 'neutral',
       provider: 'primary-fixture',
       sourceFamily: '127.0.0.1',
+      trustBoundary: 'research-provider:primary-fixture',
       contentType: 'text/html',
     }));
     expect(bundle.evidence[0].contentHash).toMatch(/^sha256:[a-f0-9]{64}$/);
@@ -151,6 +152,7 @@ describe('HttpResearchEvidenceProvider', (): void => {
           verified: true,
           stance: 'challenge',
           provider: 'dissent-fixture',
+          trustBoundary: 'research-provider:dissent-fixture',
           contentType: 'text/plain',
         }),
       ],
