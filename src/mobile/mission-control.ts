@@ -20,6 +20,7 @@ export interface MissionEvidence {
   verified: boolean;
   sourceId?: string;
   sourceFamily?: string;
+  trustBoundary?: string;
   citation?: string;
   stance?: string;
 }
