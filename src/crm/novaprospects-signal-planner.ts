@@ -3,6 +3,7 @@ import type {
   CrmDataGatewayResponse,
   CrmDataRequest,
 } from './data-gateway.js';
+import type { NovaProspectsExecutionStore } from './signal-execution-store.js';
 
 export type NovaProspectsSignalKind =
   | 'PROSPECT_DISCOVERED'
@@ -55,6 +56,7 @@ export interface NovaProspectsExecutionResult {
   tenantId: string;
   prospectId: string;
   items: readonly NovaProspectsExecutionItem[];
+  stoppedReason?: 'SIGNAL_ALREADY_CLAIMED' | 'SIGNAL_STORE_UNAVAILABLE';
 }
 
 export interface CrmDataResolver {
@@ -228,9 +230,15 @@ export function planNovaProspectsSignal(signal: NovaProspectsSignal): NovaProspe
 }
 
 export class NovaProspectsSignalExecutor {
-  constructor(private readonly gateway: CrmDataResolver | CrmDataGateway) {}
+  constructor(
+    private readonly gateway: CrmDataResolver | CrmDataGateway,
+    private readonly executionStore?: NovaProspectsExecutionStore,
+  ) {}
 
   async execute(plan: NovaProspectsSignalPlan): Promise<NovaProspectsExecutionResult> {
+    requireNonEmpty('signalId', plan.signalId);
+    requireNonEmpty('tenantId', plan.tenantId);
+    requireNonEmpty('prospectId', plan.prospectId);
     if (
       plan.maxProviderAttempts !== undefined
       && (!Number.isSafeInteger(plan.maxProviderAttempts) || plan.maxProviderAttempts < 1)
@@ -240,6 +248,24 @@ export class NovaProspectsSignalExecutor {
 
     const items: NovaProspectsExecutionItem[] = [];
     let remainingAttempts = plan.maxProviderAttempts;
+
+    if (this.executionStore && plan.requests.length > 0) {
+      let claimed = false;
+      let stoppedReason: NovaProspectsExecutionResult['stoppedReason'] = 'SIGNAL_ALREADY_CLAIMED';
+      try {
+        claimed = await this.executionStore.claim(plan.tenantId, plan.signalId) === 'CLAIMED';
+      } catch {
+        // Store failures may include private paths or credentials. Do not leak
+        // them, and never run paid providers without a confirmed reservation.
+        stoppedReason = 'SIGNAL_STORE_UNAVAILABLE';
+      }
+      if (!claimed) {
+        return {
+          signalId: plan.signalId, tenantId: plan.tenantId, prospectId: plan.prospectId,
+          items, stoppedReason,
+        };
+      }
+    }
 
     for (const request of plan.requests) {
       if (remainingAttempts === 0) {
