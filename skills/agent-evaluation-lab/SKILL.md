@@ -18,7 +18,7 @@ Measure agent behavior across a complete trajectory, not merely whether the fina
 8. Allow promotion only when release-specific safety and correctness gates pass. If a required fixture is missing, status is PARTIAL, not PASS.
 
 ## Evaluation record
-Use [agent evaluation contract](../references/agent-evaluation-contract.md).
+Use [agent evaluation contract](references/agent-evaluation-contract.md).
 
 ## Project application
 SuperBrain: multi-agent decisions and NEXUS gates. NovaProspects: provider signal accuracy, action policy and isolated tenants. Fondio: user journeys, fraud-review tooling and checkout simulations.
