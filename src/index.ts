@@ -172,3 +172,13 @@ export type {
 
 export { FileSignalExecutionStore } from './crm/signal-execution-store.js';
 export type { NovaProspectsExecutionStore } from './crm/signal-execution-store.js';
+
+// Portable Agent Skills admission is inspection-only; never an execution grant.
+export { assessSkillCandidate, parseSkillManifest } from './core/skill-foundry.js';
+export type {
+  SkillAdmissionResult,
+  SkillAdmissionState,
+  SkillCandidate,
+  SkillCapability,
+  SkillManifest,
+} from './core/skill-foundry.js';
