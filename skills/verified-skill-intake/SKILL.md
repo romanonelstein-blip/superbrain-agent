@@ -29,4 +29,4 @@ Assess new Agent Skills as untrusted software supply-chain inputs. Produce an ev
 A compact table of observed capability, evidence, licensing, attack surface, confidence, release dependencies, and recommendations for SuperBrain, NovaProspects, and Fondio.
 
 ## References
-See [skill safety baseline](../references/skill-safety-baseline.md) and https://agentskills.io/specification.
+See [skill safety baseline](references/skill-safety-baseline.md) and https://agentskills.io/specification.
