@@ -278,6 +278,27 @@ describe('SkillRuntime approval and NEXUS integration', () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
+  test('rechecks Master authority after approval and fails closed when role is revoked', async () => {
+    const plan = await prepareAndApprove();
+    canVerify = false;
+    await expect(runtime.execute(plan.planId)).rejects.toThrow('failed closed');
+    expect(handler).not.toHaveBeenCalled();
+    await expect(runtime.execute(plan.planId)).rejects.toThrow('no unused Master approval');
+  });
+
+  test('rechecks canonical NEXUS availability at execution, not only at preparation', async () => {
+    const plan = await prepareAndApprove();
+    engine.ready = false;
+    await expect(runtime.execute(plan.planId)).rejects.toThrow('failed closed');
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  test('rejects evidence-free handler output even after a legitimate approval', async () => {
+    handler.mockResolvedValue({ summary: 'Unsupported', evidenceIds: [] });
+    const plan = await prepareAndApprove();
+    await expect(runtime.execute(plan.planId)).rejects.toThrow('failed closed');
+  });
+
   test('refuses unexpected evidence IDs returned by the handler', async () => {
     handler.mockResolvedValue({ summary: 'Wrong cited evidence', evidenceIds: ['fabricated'] });
     const plan = await prepareAndApprove();
