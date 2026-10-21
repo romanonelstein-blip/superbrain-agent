@@ -182,3 +182,21 @@ export type {
   SkillCapability,
   SkillManifest,
 } from './core/skill-foundry.js';
+
+// Server-only, operator-registered read-only skill runtime.
+// Never treat Mission Control notes as signed Master authorization.
+export { SkillRuntime } from './core/skill-runtime.js';
+export type {
+  SkillAgentBinding,
+  SkillMasterAuthorization,
+  SkillMasterVerifier,
+  SkillRuntimeAuditRecord,
+  SkillRuntimeAuditSink,
+  SkillRuntimeInput,
+  SkillRuntimeOutput,
+  SkillRuntimePlan,
+} from './core/skill-runtime.js';
+
+// Verification only; proof issuance requires a separate authenticated human Master service.
+export { HmacSkillMasterVerifier } from './workflow/skill-master-verifier.js';
+export type { AuthorizedMasterCheck } from './workflow/skill-master-verifier.js';

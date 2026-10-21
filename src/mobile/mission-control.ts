@@ -2,6 +2,7 @@ import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { dirname } from 'node:path';
+import type { SkillRuntime } from '../core/skill-runtime.js';
 
 export type MissionMode = 'ask' | 'research';
 export type MasterDecisionAction = 'ACCEPT' | 'MODIFY' | 'RESEARCH_MORE' | 'OVERRIDE' | 'REJECT';
@@ -114,6 +115,8 @@ export interface MissionControlServerConfig {
   apiVersion?: string;
   capabilities?: string[];
   executor?: MissionExecutor;
+  // Read-only registry discovery; execution is internal and Master-authorized.
+  skillRegistry?: Pick<SkillRuntime, 'listAgents'>;
   maxBodyBytes?: number;
 }
 
@@ -227,7 +230,10 @@ const DECISIONS = new Set<MasterDecisionAction>([
 ]);
 
 export class MissionControlServer {
-  private readonly config: Required<Omit<MissionControlServerConfig, 'executor'>> & { executor: MissionExecutor };
+  private readonly config: Required<Omit<MissionControlServerConfig, 'executor' | 'skillRegistry'>> & {
+    executor: MissionExecutor;
+    skillRegistry?: Pick<SkillRuntime, 'listAgents'>;
+  };
   private readonly store: MissionStore;
   private server: Server | null = null;
 
@@ -244,6 +250,7 @@ export class MissionControlServer {
       apiVersion: config.apiVersion ?? '1',
       capabilities: config.capabilities ?? [],
       executor: config.executor ?? new UnavailableMissionExecutor(),
+      ...(config.skillRegistry ? { skillRegistry: config.skillRegistry } : {}),
       maxBodyBytes: config.maxBodyBytes ?? 64 * 1024,
     };
     this.store = new MissionStore(this.config.dataPath);
@@ -315,6 +322,14 @@ export class MissionControlServer {
         apiVersion: this.config.apiVersion,
         capabilities: this.config.capabilities,
       });
+      return;
+    }
+
+    if (method === 'GET' && url.pathname === '/api/skills') {
+      // No remote registration, execution, paid API or generic Master approval route.
+      // A bearer token alone is not proof of a human Master identity.
+      const skills = this.config.skillRegistry?.listAgents() ?? [];
+      this.sendJson(response, 200, { enabled: Boolean(this.config.skillRegistry), skills });
       return;
     }
 

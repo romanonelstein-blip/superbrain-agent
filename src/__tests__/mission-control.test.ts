@@ -230,3 +230,42 @@ describe('MissionControlServer', (): void => {
     expect(list.missions).toEqual([]);
   });
 });
+
+
+describe('Mission Control Skill Foundry discovery', () => {
+  test('shows only registered skills after bearer authorization, never a public execution endpoint', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'skill-registry-api-'));
+    const registry = {
+      listAgents: (): Array<{ agentId: string; skillName: string; skillDigest: string }> => [{
+        agentId: 'research-agent', skillName: 'nexus-evidence-verification',
+        skillDigest: 'a'.repeat(64),
+      }],
+    };
+    const server = new MissionControlServer({
+      token: TOKEN, port: 0, dataPath: join(directory, 'missions.json'),
+      skillRegistry: registry,
+    });
+    const address = await server.listen();
+    const context = { directory, server, baseUrl: address.url };
+    contexts.push(context);
+
+    const anonymous = await fetch(address.url + '/api/skills');
+    expect(anonymous.status).toBe(401);
+    const found = await api(context, '/api/skills');
+    expect(found.status).toBe(200);
+    expect(await found.json()).toEqual({
+      enabled: true,
+      skills: [expect.objectContaining({ agentId: 'research-agent', skillName: 'nexus-evidence-verification' })],
+    });
+    const forbiddenExecution = await api(context, '/api/skills/execute', {
+      method: 'POST', body: JSON.stringify({ skillName: 'nexus-evidence-verification' }),
+    });
+    expect(forbiddenExecution.status).toBe(404);
+  });
+
+  test('does not advertise an active registry unless explicitly configured', async () => {
+    const context = await createTestServer();
+    const response = await api(context, '/api/skills');
+    expect(await response.json()).toEqual({ enabled: false, skills: [] });
+  });
+});
