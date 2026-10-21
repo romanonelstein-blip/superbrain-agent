@@ -264,8 +264,18 @@ export class SkillRuntime {
     }
 
     try {
+      // Revalidate the external authority and NEXUS readiness immediately before dispatch.
+      // A prior approval alone is not enough if access has been revoked.
+      const [nexusStatus, masterStillAuthorized] = await Promise.all([
+        this.nexus.getStatus(),
+        this.masterVerifier.verify({ ...record.authorization }),
+      ]);
+      if (!nexusStatus.ready || !masterStillAuthorized) {
+        throw new Error('NEXUS unavailable or Master authority revoked.');
+      }
       const output = await binding.handle(Object.freeze({ ...record.request }));
       if (!output || !output.summary?.trim() || !Array.isArray(output.evidenceIds) ||
+          output.evidenceIds.length === 0 ||
           output.evidenceIds.some(id => !record.evidenceIds.includes(id))) {
         throw new Error('Skill handler output lacks authorized evidence.');
       }
