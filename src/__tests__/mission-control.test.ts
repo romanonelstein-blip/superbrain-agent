@@ -236,7 +236,7 @@ describe('Mission Control Skill Foundry discovery', () => {
   test('shows only registered skills after bearer authorization, never a public execution endpoint', async () => {
     const directory = mkdtempSync(join(tmpdir(), 'skill-registry-api-'));
     const registry = {
-      listAgents: () => [{
+      listAgents: (): Array<{ agentId: string; skillName: string; skillDigest: string }> => [{
         agentId: 'research-agent', skillName: 'nexus-evidence-verification',
         skillDigest: 'a'.repeat(64),
       }],
