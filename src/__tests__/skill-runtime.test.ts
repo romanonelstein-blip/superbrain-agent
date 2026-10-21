@@ -212,7 +212,7 @@ describe('SkillRuntime approval and NEXUS integration', () => {
     await expect(runtime.prepare(input)).rejects.toThrow('not ready');
     engine.ready = true;
     engine.decision = { ...positiveDecision(), pipelinePasses: { ...positiveDecision().pipelinePasses, neis: false } };
-    await expect(runtime.prepare(input)).rejects.toThrow('canonical NEXUS');
+    await expect(runtime.prepare(input)).rejects.toThrow('Canonical NEXUS');
     expect(handler).not.toHaveBeenCalled();
   });
 
