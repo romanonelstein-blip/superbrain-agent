@@ -196,3 +196,7 @@ export type {
   SkillRuntimeOutput,
   SkillRuntimePlan,
 } from './core/skill-runtime.js';
+
+// Verification only; proof issuance requires a separate authenticated human Master service.
+export { HmacSkillMasterVerifier } from './workflow/skill-master-verifier.js';
+export type { AuthorizedMasterCheck } from './workflow/skill-master-verifier.js';
