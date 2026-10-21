@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { jest } from '@jest/globals';
 import { HmacSkillMasterVerifier } from '../workflow/skill-master-verifier';
 import type { SkillMasterAuthorization } from '../core/skill-runtime';
 
