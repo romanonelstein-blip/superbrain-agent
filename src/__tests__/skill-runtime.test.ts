@@ -115,9 +115,10 @@ describe('SkillRuntime approval and NEXUS integration', () => {
     audit = [];
     canVerify = true;
     failAudit = false;
-    handler = jest.fn(async (_input: Readonly<SkillRuntimeInput>): Promise<SkillRuntimeOutput> => ({
-      summary: 'Fixture answer only', evidenceIds: ['evidence-1'],
-    }));
+    handler = jest.fn(async (handlerInput: Readonly<SkillRuntimeInput>): Promise<SkillRuntimeOutput> => {
+      expect(handlerInput.workspaceId).toBe('workspace-a');
+      return { summary: 'Fixture answer only', evidenceIds: ['evidence-1'] };
+    });
     const sink: SkillRuntimeAuditSink = {
       append: async (item) => {
         if (failAudit) throw new Error('audit unavailable');
