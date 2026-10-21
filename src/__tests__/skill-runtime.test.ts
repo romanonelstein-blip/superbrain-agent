@@ -121,14 +121,14 @@ describe('SkillRuntime approval and NEXUS integration', () => {
       },
     };
     runtime = new SkillRuntime(engine, provider, {
-      verify: async () => canVerify,
+      verify: async (): Promise<boolean> => canVerify,
     }, sink, () => clock);
     await runtime.register({
       agentId: 'research-agent', candidate: candidate(), handle: handler,
     });
   });
 
-  async function prepareAndApprove(overrides: Partial<SkillMasterAuthorization> = {}) {
+  async function prepareAndApprove(overrides: Partial<SkillMasterAuthorization> = {}): Promise<SkillRuntimePlan> {
     const plan = await runtime.prepare(input);
     const proof: SkillMasterAuthorization = {
       action: 'ACCEPT',
