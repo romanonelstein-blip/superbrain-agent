@@ -229,4 +229,13 @@ describe('MissionControlServer', (): void => {
     const list = await listResponse.json() as { missions: unknown[] };
     expect(list.missions).toEqual([]);
   });
+
+  test('bounds HTTP request parsing independently of NEXUS execution', async (): Promise<void> => {
+    const context = await createTestServer();
+    const instance = context.server as unknown as { server: import('node:http').Server };
+    expect(instance.server.headersTimeout).toBe(10_000);
+    expect(instance.server.requestTimeout).toBe(20_000);
+    expect(instance.server.maxHeadersCount).toBe(64);
+  });
+
 });
