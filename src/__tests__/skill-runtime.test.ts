@@ -1,8 +1,10 @@
 import { createHash } from 'node:crypto';
+import { jest } from '@jest/globals';
 import type { SkillCandidate } from '../core/skill-foundry';
 import {
   SkillRuntime,
   type SkillMasterAuthorization,
+  type SkillRuntimePlan,
   type SkillRuntimeAuditRecord,
   type SkillRuntimeAuditSink,
 } from '../core/skill-runtime';
