@@ -263,6 +263,12 @@ export class MissionControlServer {
       });
     });
 
+    // Defend unauthenticated HTTP parsing against slow headers and oversized header sets.
+    // requestTimeout limits receiving a request body, not a running NEXUS mission.
+    this.server.headersTimeout = 10_000;
+    this.server.requestTimeout = 20_000;
+    this.server.maxHeadersCount = 64;
+
     await new Promise<void>((resolve, reject): void => {
       const server = this.server;
       if (!server) {
