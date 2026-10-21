@@ -5,6 +5,8 @@ import {
   SkillRuntime,
   type SkillMasterAuthorization,
   type SkillRuntimePlan,
+  type SkillRuntimeInput,
+  type SkillRuntimeOutput,
   type SkillRuntimeAuditRecord,
   type SkillRuntimeAuditSink,
 } from '../core/skill-runtime';
@@ -102,7 +104,7 @@ describe('SkillRuntime approval and NEXUS integration', () => {
   let provider: Provider;
   let audit: SkillRuntimeAuditRecord[];
   let runtime: SkillRuntime;
-  let handler: jest.Mock;
+  let handler: jest.Mock<(input: Readonly<SkillRuntimeInput>) => Promise<SkillRuntimeOutput>>;
   let canVerify: boolean;
   let failAudit: boolean;
 
@@ -113,7 +115,7 @@ describe('SkillRuntime approval and NEXUS integration', () => {
     audit = [];
     canVerify = true;
     failAudit = false;
-    handler = jest.fn(async () => ({
+    handler = jest.fn(async (_input: Readonly<SkillRuntimeInput>): Promise<SkillRuntimeOutput> => ({
       summary: 'Fixture answer only', evidenceIds: ['evidence-1'],
     }));
     const sink: SkillRuntimeAuditSink = {
