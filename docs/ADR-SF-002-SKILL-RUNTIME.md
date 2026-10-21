@@ -14,13 +14,13 @@ The runtime consumes the existing `MissionEvidenceProvider` and `NexusDecisionEn
 - canonical NEXUS YES, approved, all four true gates, referenced evidence IDs;
 - immutable intent digest of workspace, agent, skill content + revision, run, question, evidence and gate results.
 
-No work dispatch occurs at proposal time. Execution then requires an EXACT Master authorization for the same workspace, proposal, intent digest, actor, and a not-expired proof. A separate trusted `SkillMasterVerifier` checks that opaque proof. The old Mission Control `ACCEPT` decision endpoint is insufficient: it stores a note but does not authenticate an individual actor or cryptographically bind an action intent. It **cannot** unlock this runtime.
+No work dispatch occurs at proposal time. Execution then requires an EXACT Master authorization for the same workspace, proposal, intent digest, actor, and a not-expired proof. The provided `HmacSkillMasterVerifier` checks an HMAC-SHA256 proof in constant time and rechecks live workspace Master membership using a required authorization callback. Only a distinct authenticated human approval service may issue signed proofs; the runtime has no signing endpoint. The old Mission Control `ACCEPT` decision endpoint is insufficient: it stores a note but does not authenticate an individual actor or cryptographically bind an action intent. It **cannot** unlock this runtime.
 
-The runtime claims the one-time proposal before any async work; all audit append failures block execution. Repeated or concurrent calls cannot dispatch the same plan twice in one process. Handler results are checked against approved evidence IDs.
+The runtime claims the one-time proposal before any async work, rechecks NEXUS readiness and the Master proof/role before dispatch; all audit append failures block execution. Repeated or concurrent calls cannot dispatch the same plan twice in one process. Handler results are checked against approved evidence IDs.
 
 ## Explicit limitations and rollout blocks
 
-1. No production handler, Master proof verification service, or durable audit store is wired by default. Production activation requires trusted identity verification, a persistent transactional policy/approval ledger and a distributed idempotency claim. Current process memory is NOT sufficient for serverless/multi-host deployment.
+1. No production handler, authenticated human proof **issuer**, live Master membership resolver, or durable audit store is wired by default. Production activation requires trusted identity verification, a persistent transactional policy/approval ledger and a distributed idempotency claim. Current process memory is NOT sufficient for serverless/multi-host deployment.
 2. The runtime does not grant system permissions. It assumes a developer-reviewed handler truly is read-only. Technical egress isolation, process sandboxing, scoped API permissions and output redaction remain operator responsibilities.
 3. An external skill's authorship/license is not attested by the admission validator. REVIEW-READY is structural screening, not an authorization certificate.
 4. The canonical Python NEXUS environment may be unavailable. Its `ready=false` gate blocks proposals.
@@ -35,7 +35,7 @@ The runtime claims the one-time proposal before any async work; all audit append
 const registry = new SkillRuntime(
   new NexusBridge(),
   evidenceProvider,       // existing verified MissionEvidenceProvider
-  masterVerifier,         // authenticates human + exact intent, no permissive default
+  masterVerifier,         // HmacSkillMasterVerifier with live role resolver; no permissive default
   durableAuditSink,       // append-only durable store; never best-effort
 );
 await registry.register({
@@ -60,4 +60,4 @@ await registry.register({
 
 ## Next steps (separate PR)
 
-Build a PostgreSQL-backed append-only ledger and scoped human actor identity, add real signed Master proof verification, isolate read-only handler network privileges and add E2E tests before enabling any real skill. Do not merge or deploy without a separate gate.
+Build a PostgreSQL-backed append-only ledger and scoped human actor identity, integrate an authenticated HMAC proof issuer and real-time Master membership resolver, isolate read-only handler network privileges and add E2E tests before enabling any real skill. Do not merge or deploy without a separate gate.
