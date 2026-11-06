@@ -48,6 +48,7 @@ def _build_evidence(item: dict[str, Any]):
         stance=stance,
         source_id=_required_text(item, "sourceId"),
         source_family=_required_text(item, "sourceFamily"),
+        trust_boundary=_required_text(item, "trustBoundary"),
         reliability=_number(item.get("reliability"), 0.5),
         freshness=_number(item.get("freshness"), 1.0),
         relevance=_number(item.get("relevance"), 1.0),

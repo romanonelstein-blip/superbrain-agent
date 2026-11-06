@@ -15,7 +15,9 @@
     "test:github": "npm run build && node --test tests/github.test.mjs",
     "ios:sync": "node scripts/sync-ios-contract.mjs",
     "ios:check": "node scripts/sync-ios-contract.mjs --check",
-    "start:mobile-api": "node dist/mobile/start-mission-control.js"
+    "start:mobile-api": "node dist/mobile/start-mission-control.js",
+    "sb034:preflight": "node scripts/sb034-live-proof.mjs",
+    "sb034:live": "node scripts/sb034-live-proof.mjs"
   },
   "dependencies": {
     "chalk": "^5.3.0",

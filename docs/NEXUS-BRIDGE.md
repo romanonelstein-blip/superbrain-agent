@@ -20,7 +20,7 @@ On Windows, the default Python command is `python`. Override it with `SUPERBRAIN
 - Blinded Dissent
 - Verifier
 
-Verified evidence must include a citation and content hash. Runner failures, timeouts, malformed JSON, missing gates, missing core files, and unconfigured paths never become approvals. Raw subprocess errors are not returned, reducing the chance of leaking credentials or provider output.
+Every NEXUS evidence item must include an explicit trust boundary. Verified evidence must also include a citation and content hash. Runner failures, timeouts, malformed JSON, missing gates, missing core files, and unconfigured paths never become approvals. Raw subprocess errors are not returned, reducing the chance of leaking credentials or provider output.
 
 Blinded dissent is explicit. If an independent dissent/review pass has actually completed, provide a `dissent` object with `completed: true`, a non-empty provider identity, and any counterevidence it produced. If dissent is omitted, the canonical NEXUS runtime keeps the `blinded_dissent` gate closed. The bridge never fabricates a dissent pass from the primary model response.
 
@@ -40,6 +40,7 @@ const result = await nexus.evaluate({
       claim: 'Regression tests passed',
       sourceId: 'github-actions-run',
       sourceFamily: 'ci',
+      trustBoundary: 'github-actions',
       verified: true,
       citation: 'All required regression tests passed.',
       contentHash: 'sha256:...',

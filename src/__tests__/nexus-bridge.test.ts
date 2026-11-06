@@ -23,6 +23,7 @@ async function fixture(output: string): Promise<{ bridge: NexusBridge; request: 
         claim: 'Tests passed',
         sourceId: 'ci',
         sourceFamily: 'tests',
+        trustBoundary: 'fixture-ci',
         verified: true,
         citation: 'All tests passed',
         contentHash: 'sha256:fixture',

@@ -104,6 +104,7 @@ export class NexusMissionExecutor implements MissionExecutor {
       verified: item.verified === true,
       sourceId: item.sourceId,
       sourceFamily: item.sourceFamily,
+      ...(item.trustBoundary ? { trustBoundary: item.trustBoundary } : {}),
       ...(item.citation ? { citation: item.citation } : {}),
       ...(item.stance ? { stance: item.stance } : {}),
     }));
