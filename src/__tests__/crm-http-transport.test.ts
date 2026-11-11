@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { FetchJsonHttpTransport } from '../crm/http-json-transport';
@@ -48,6 +49,7 @@ describe('CRM HTTP transport credential boundary', (): void => {
       const payload = '0123456789';
       const server = createServer((_request, response): void => {
         if (includeContentLength) response.writeHead(200, { 'content-length': Buffer.byteLength(payload) });
+        else response.flushHeaders(); // Force chunked transfer, without an automatic Content-Length.
         response.end(payload);
       });
       const url = await listen(server);
@@ -61,10 +63,76 @@ describe('CRM HTTP transport credential boundary', (): void => {
     },
   );
 
-  test('rejects invalid response size limits', async (): Promise<void> => {
+  test.each([0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])(
+    'rejects invalid response size limit %s before fetching', async (maxResponseBytes): Promise<void> => {
     await expect(new FetchJsonHttpTransport().request({
-      method: 'GET', url: 'http://127.0.0.1/', maxResponseBytes: 0,
+      method: 'GET', url: 'invalid-url', maxResponseBytes,
     })).rejects.toThrow('maxResponseBytes must be a positive safe integer');
+  });
+
+  test('enforces the default 1 MiB limit on chunked responses', async (): Promise<void> => {
+    const server = createServer((_request, response): void => {
+      response.flushHeaders();
+      response.end('x'.repeat(1_048_577));
+    });
+    const url = await listen(server);
+    try {
+      await expect(new FetchJsonHttpTransport().request({ method: 'GET', url }))
+        .rejects.toThrow('HTTP response exceeds maximum size of 1048576 bytes');
+    } finally { await close(server); }
+  });
+
+  test.each([4, 5])('counts UTF-8 bytes across chunks at limit %s', async (maxResponseBytes): Promise<void> => {
+    const bytes = new TextEncoder().encode('"€"'); // Five bytes, three characters.
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller): void {
+        controller.enqueue(bytes.slice(0, 2));
+        controller.enqueue(bytes.slice(2));
+        controller.close();
+      },
+    });
+    const mock = jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(stream));
+    try {
+      const result = new FetchJsonHttpTransport().request({ method: 'GET', url: 'http://fixture.invalid', maxResponseBytes });
+      if (maxResponseBytes === 4) await expect(result).rejects.toThrow('maximum size of 4 bytes');
+      else await expect(result).resolves.toEqual({ status: 200, body: '€' });
+    } finally { mock.mockRestore(); }
+  });
+
+  test.each(['header', 'stream'] as const)(
+    'cancels an oversized %s response without waiting for cancellation', async (mode): Promise<void> => {
+      let cancelled = false;
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller): void { controller.enqueue(new Uint8Array(9)); },
+        cancel(): Promise<void> {
+          cancelled = true;
+          return new Promise<void>(() => { /* Simulate cancellation that never settles. */ });
+        },
+      });
+      const response = new Response(stream, { headers: mode === 'header' ? { 'content-length': '9' } : {} });
+      const mock = jest.spyOn(globalThis, 'fetch').mockResolvedValue(response);
+      try {
+        await expect(new FetchJsonHttpTransport().request({
+          method: 'GET', url: 'http://fixture.invalid', maxResponseBytes: 8,
+        })).rejects.toThrow('maximum size of 8 bytes');
+        expect(cancelled).toBe(true);
+      } finally { mock.mockRestore(); }
+    }, 1000,
+  );
+
+  test('keeps the request timeout active after receiving response headers and a partial body', async (): Promise<void> => {
+    let bodyStarted = false;
+    const server = createServer((_request, response): void => {
+      bodyStarted = true;
+      response.writeHead(200);
+      response.write('{'); // Deliberately never finish the body.
+    });
+    const url = await listen(server);
+    try {
+      await expect(new FetchJsonHttpTransport().request({ method: 'GET', url, timeoutMs: 150 }))
+        .rejects.toThrow();
+      expect(bodyStarted).toBe(true);
+    } finally { await close(server); }
   });
 
   test('still sends credentials and JSON to the intended provider endpoint', async (): Promise<void> => {
