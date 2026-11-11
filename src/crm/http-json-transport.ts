@@ -40,6 +40,9 @@ function appendQuery(url: URL, query: JsonHttpRequest['query']): void {
 async function readResponseText(response: Response, maxBytes: number): Promise<string> {
   const contentLength = response.headers.get('content-length');
   if (contentLength !== null && /^\d+$/.test(contentLength) && Number(contentLength) > maxBytes) {
+    // Reject from headers before buffering the body, but cancel it so the fetch
+    // implementation can release the connection and stop receiving data.
+    void response.body?.cancel().catch(() => undefined);
     throw new Error(`HTTP response exceeds maximum size of ${maxBytes} bytes`);
   }
 
@@ -56,11 +59,8 @@ async function readResponseText(response: Response, maxBytes: number): Promise<s
 
     totalBytes += value.byteLength;
     if (totalBytes > maxBytes) {
-      try {
-        await reader.cancel();
-      } catch {
-        // Preserve the useful size-limit error if cancellation itself fails.
-      }
+      // Do not wait for cancellation to settle before reporting the size error.
+      void reader.cancel().catch(() => undefined);
       throw new Error(`HTTP response exceeds maximum size of ${maxBytes} bytes`);
     }
     chunks.push(value);
