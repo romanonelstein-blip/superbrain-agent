@@ -10,6 +10,6 @@ This directory contains first-party, reviewable skill instructions for Superbrai
 
 - Treat skills from external repositories as untrusted until their complete contents, license, provenance, and behavior have been reviewed.
 - Do not auto-download, auto-install, or execute third-party skills or scripts.
-- Review changes to skills like application code. Keep requested permissions minimal and require human approval for writes, external calls, secret access, merges, and deployments.
+- Review changes to skills like application code. Keep requested permissions minimal and keep writes, external calls, secret access, merges, and deployments outside the repository-audit skill. Approval does not expand this skill's read-only scope.
 - A skill's presence is not proof that its recommendations or any software it discusses are safe or tested.
 - Validate claims against the exact repository revision and current CI results; never infer a pass from an old commit or badge alone.
