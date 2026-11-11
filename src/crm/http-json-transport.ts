@@ -9,6 +9,8 @@ export interface JsonHttpRequest {
   query?: Readonly<Record<string, JsonHttpQueryValue>>;
   body?: Readonly<Record<string, unknown>>;
   timeoutMs?: number;
+  /** Maximum response body size in bytes. Defaults to 1 MiB. */
+  maxResponseBytes?: number;
 }
 
 export interface JsonHttpResponse {
@@ -19,6 +21,8 @@ export interface JsonHttpResponse {
 export interface JsonHttpTransport {
   request(input: JsonHttpRequest): Promise<JsonHttpResponse>;
 }
+
+const DEFAULT_MAX_RESPONSE_BYTES = 1_048_576;
 
 function appendQuery(url: URL, query: JsonHttpRequest['query']): void {
   if (!query) return;
@@ -33,8 +37,51 @@ function appendQuery(url: URL, query: JsonHttpRequest['query']): void {
   }
 }
 
+async function readResponseText(response: Response, maxBytes: number): Promise<string> {
+  const contentLength = response.headers.get('content-length');
+  if (contentLength !== null && /^\d+$/.test(contentLength) && Number(contentLength) > maxBytes) {
+    throw new Error(`HTTP response exceeds maximum size of ${maxBytes} bytes`);
+  }
+
+  if (!response.body) return '';
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+
+    totalBytes += value.byteLength;
+    if (totalBytes > maxBytes) {
+      try {
+        await reader.cancel();
+      } catch {
+        // Preserve the useful size-limit error if cancellation itself fails.
+      }
+      throw new Error(`HTTP response exceeds maximum size of ${maxBytes} bytes`);
+    }
+    chunks.push(value);
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 export class FetchJsonHttpTransport implements JsonHttpTransport {
   async request(input: JsonHttpRequest): Promise<JsonHttpResponse> {
+    const maxResponseBytes = input.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
+    if (!Number.isSafeInteger(maxResponseBytes) || maxResponseBytes <= 0) {
+      throw new RangeError('maxResponseBytes must be a positive safe integer');
+    }
+
     const url = new URL(input.url);
     appendQuery(url, input.query);
 
@@ -56,7 +103,7 @@ export class FetchJsonHttpTransport implements JsonHttpTransport {
         signal: controller.signal,
       });
 
-      const text = await response.text();
+      const text = await readResponseText(response, maxResponseBytes);
       let body: unknown = null;
       if (text.length > 0) {
         try {
