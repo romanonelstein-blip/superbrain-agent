@@ -42,6 +42,31 @@ describe('CRM HTTP transport credential boundary', (): void => {
     },
   );
 
+  test.each([true, false])(
+    'rejects oversized response bodies (content-length present: %s)',
+    async (includeContentLength): Promise<void> => {
+      const payload = '0123456789';
+      const server = createServer((_request, response): void => {
+        if (includeContentLength) response.writeHead(200, { 'content-length': Buffer.byteLength(payload) });
+        response.end(payload);
+      });
+      const url = await listen(server);
+      try {
+        await expect(new FetchJsonHttpTransport().request({
+          method: 'GET', url, maxResponseBytes: 8,
+        })).rejects.toThrow('HTTP response exceeds maximum size of 8 bytes');
+      } finally {
+        await close(server);
+      }
+    },
+  );
+
+  test('rejects invalid response size limits', async (): Promise<void> => {
+    await expect(new FetchJsonHttpTransport().request({
+      method: 'GET', url: 'http://127.0.0.1/', maxResponseBytes: 0,
+    })).rejects.toThrow('maxResponseBytes must be a positive safe integer');
+  });
+
   test('still sends credentials and JSON to the intended provider endpoint', async (): Promise<void> => {
     let authentication: string | string[] | undefined;
     let body = '';
